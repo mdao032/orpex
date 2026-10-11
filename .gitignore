@@ -1,0 +1,19 @@
+# Build
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+backend/src/main/resources/static/
+
+# IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+# Local
+.env
+*.log
+
+# Claude Code (réglages personnels)
+.claude/settings.local.json

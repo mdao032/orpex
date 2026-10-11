@@ -1,0 +1,26 @@
+# Services de développement : base PostgreSQL et faux serveur de mail (rien ne part réellement).
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: orpex
+      POSTGRES_USER: orpex
+      POSTGRES_PASSWORD: orpex
+    ports:
+      - "5435:5432"
+    volumes:
+      - orpex-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orpex -d orpex"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"   # SMTP : l'application envoie ici en développement
+      - "8025:8025"   # Interface web : http://localhost:8025
+
+volumes:
+  orpex-pgdata:

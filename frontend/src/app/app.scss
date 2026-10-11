@@ -1,0 +1,38 @@
+.entete {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--orpex-surface);
+  border-bottom: 1px solid var(--orpex-line);
+}
+
+.marque {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  color: var(--orpex-ink);
+}
+
+nav {
+  display: flex;
+  gap: 1.25rem;
+
+  a {
+    padding: 0.25rem 0;
+    text-decoration: none;
+    color: var(--orpex-ink-soft);
+    border-bottom: 2px solid transparent;
+
+    &.actif {
+      color: var(--orpex-accent);
+      border-bottom-color: var(--orpex-accent);
+    }
+  }
+}
+
+.contenu {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}

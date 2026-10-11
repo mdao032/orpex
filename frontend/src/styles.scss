@@ -1,0 +1,35 @@
+:root {
+  --orpex-ink: #17212b;
+  --orpex-ink-soft: #52606d;
+  --orpex-paper: #f6f8fa;
+  --orpex-surface: #ffffff;
+  --orpex-line: #d5dce3;
+  --orpex-accent: #0b5d6b;
+  --orpex-accent-ink: #ffffff;
+  --orpex-danger: #a4262c;
+  --orpex-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--orpex-font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--orpex-ink);
+  background: var(--orpex-paper);
+}
+
+a { color: var(--orpex-accent); }
+
+:focus-visible {
+  outline: 2px solid var(--orpex-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

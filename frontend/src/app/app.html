@@ -1,0 +1,12 @@
+<header class="entete">
+  <a class="marque" routerLink="/">{{ title }}</a>
+  <nav aria-label="Navigation principale">
+    @for (entree of menu; track entree.chemin) {
+      <a [routerLink]="entree.chemin" routerLinkActive="actif">{{ entree.libelle }}</a>
+    }
+  </nav>
+</header>
+
+<main class="contenu">
+  <router-outlet />
+</main>
