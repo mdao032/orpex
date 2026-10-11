@@ -29,7 +29,7 @@ L'humain rédige les messages ; la machine ne fait que planifier et expédier. L
 ## Commandes
 
 ```powershell
-mvn -f backend clean verify              # compile + 25 tests du cœur métier
+mvn -f backend clean verify              # 25 tests unitaires + tests d'intégration *IT (Docker requis)
 cd frontend; npm install; npx ng test --watch=false; npm start
 .\scripts\dev.ps1                        # base + Mailpit (Docker) puis API, profil dev
 .\scripts\build.ps1                      # front copié dans le JAR, puis mvn verify
@@ -72,7 +72,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `mvn clean verify` passe : compilation complète, 25 tests du cœur métier (vrai JUnit).
 - L'API démarre en profil `dev` : Flyway applique `V1__init.sql` sur PostgreSQL 17, `/actuator/health` = `UP`,
   connexion de l'administrateur de démarrage et `/api/me` fonctionnent. Le front s'affiche.
-- Pas encore d'entité JPA ni de test qui charge le contexte Spring (étape 0.7 de la feuille de route).
+- `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
+  et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
+- Pas encore d'entité JPA.
 
 ## Écarts connus avec la spécification
 
