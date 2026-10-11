@@ -1,7 +1,11 @@
 # ORPEX : consignes pour Claude Code
 
-ORPEX = **O**rdonnanceur de **R**elances **P**lanifiées et **EX**pédiées. Lis aussi `README.md` (démarrage, état,
-écarts) et `docs/specification.md` (spécification fonctionnelle, source de vérité des règles métier).
+ORPEX = **O**rdonnanceur de **R**elances **P**lanifiées et **EX**pédiées. Lis aussi `README.md` (démarrage, écarts).
+
+Documents hors dépôt (dossier `E:\Projets\orpex-docs`) :
+- Spécification fonctionnelle, source de vérité des règles métier : `E:\Projets\orpex-docs\specs\Spécification fonctionnelle – Relances planifiées par import Excel.docx`.
+- **Feuille de route à suivre** : `E:\Projets\orpex-docs\roadmaps\ROADMAP.md`. Avant de commencer, repérer la
+  première étape non cochée ; une fois son critère « Fait quand » vérifié, la cocher et ajouter une ligne au journal.
 
 ## Produit
 
@@ -17,7 +21,9 @@ L'humain rédige les messages ; la machine ne fait que planifier et expédier. L
   `-flyway`, `-data-jpa`, etc.), Maven, PostgreSQL, Flyway.
 - `frontend/` : Angular 22.2, composants autonomes, signaux, SCSS, tests Vitest. Aucune ressource externe
   (pas de CDN ni de police distante) : l'outil tourne dans un réseau bancaire.
-- `docker-compose.yml` : PostgreSQL 17 et Mailpit (faux serveur de mail) pour le développement.
+- `docker-compose.yml` : PostgreSQL 17 (port hôte **5435**) et Mailpit (SMTP 1025, interface
+  http://localhost:8025) pour le développement.
+- Dépôt unique (back + front) : https://github.com/mdao032/orpex, branche `main`.
 - Déploiement visé : serveur interne de la banque (JAR ou image Docker), jamais de service cloud tiers obligatoire.
 
 ## Commandes
@@ -37,11 +43,13 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `calendar` (modes d'envoi, jours ouvrés, calcul des jours, activation), `importing` (validation des lignes,
   empreinte de configuration), `mail` (interface `MailGateway`, pas encore d'implémentation).
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
+- Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
+  `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
 - `backend/src/main/resources/db/migration/` : Flyway. **Ne jamais modifier `V1__init.sql`** : ajouter `V2__...`.
 - Les noms techniques et le code sont en anglais ; les colonnes Excel (`Columns`), les textes de l'interface et les
   messages destinés à l'utilisateur sont en français.
 
-## Règles métier à ne pas casser (détail : `docs/specification.md`)
+## Règles métier à ne pas casser (détail : la spécification)
 
 - Trois modes : `ponctuel`, `avant_echeance` (de échéance moins N jours à l'échéance, bornes incluses), `periode`.
 - Avec `jours_ouvres_uniquement`, les week-ends et jours fériés sont sautés ; une échéance non ouvrée reporte le
@@ -61,10 +69,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Vérifié : front (build + 2 tests), cœur métier (25 tests, exécutés avec un JUnit de remplacement), schéma SQL sur
-  PostgreSQL 16 (contraintes et triggers).
-- **Non vérifié : tout ce qui dépend de Spring** (`pom.xml`, `config/`, `api/`). Premier travail : lancer
-  `mvn -f backend clean verify` et corriger ce qui ne compile pas.
+- `mvn clean verify` passe : compilation complète, 25 tests du cœur métier (vrai JUnit).
+- L'API démarre en profil `dev` : Flyway applique `V1__init.sql` sur PostgreSQL 17, `/actuator/health` = `UP`,
+  connexion de l'administrateur de démarrage et `/api/me` fonctionnent. Le front s'affiche.
+- Pas encore d'entité JPA ni de test qui charge le contexte Spring (étape 0.7 de la feuille de route).
 
 ## Écarts connus avec la spécification
 
@@ -77,17 +85,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## Prochaines étapes
 
-1. `mvn verify` et corrections.
-2. Comptes en base (lecture de `users`) et création du premier administrateur.
-3. Import Excel : lecteur Apache POI (version figée), puis `RowValidator`, aperçu, création et mise à jour par `id`.
-4. Génération des envois à l'activation (`ScheduleCalculator` + `ActivationPlanner`).
-5. Worker d'envoi (`SELECT ... FOR UPDATE SKIP LOCKED`) et implémentation SMTP de `MailGateway`.
-6. Validation quotidienne, journal d'audit, notifications.
-7. Écrans Angular : relances, import avec aperçu, validation du jour, journal.
-8. Livraison : image Docker et JAR lançable comme service.
+Voir la feuille de route (`orpex-docs/roadmaps/ROADMAP.md`), seule liste à jour.
 
 ## Façon de travailler
 
 - Avancer par petites étapes vérifiables : compiler et lancer les tests avant de passer à la suite.
 - Toute dépendance ajoutée a une version figée et récente (pas de `latest`) ; vérifier les versions avant de les écrire.
-- Ne pas inventer de règle métier : en cas de doute, poser la question ou consulter `docs/specification.md`.
+- Ne pas inventer de règle métier : en cas de doute, poser la question ou consulter la spécification.

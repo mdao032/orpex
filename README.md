@@ -4,8 +4,8 @@
 
 Un fichier Excel décrit des relances (une ligne = un destinataire, un message, un calendrier). L'application les
 planifie, demande si besoin une validation quotidienne, puis les envoie automatiquement par le relais SMTP de la banque.
-La spécification fonctionnelle complète est dans le document partagé avec l'utilisateur final ; une copie
-(export Markdown ou Word) peut être déposée dans `docs/`.
+La spécification fonctionnelle et la feuille de route sont tenues hors du dépôt, dans le dossier `orpex-docs`
+(`specs/` et `roadmaps/ROADMAP.md`).
 
 ## Structure
 
@@ -13,7 +13,7 @@ La spécification fonctionnelle complète est dans le document partagé avec l'u
 | --- | --- |
 | `backend/` | API et worker : Java 21, Spring Boot 4.1, PostgreSQL, Flyway (Maven) |
 | `frontend/` | Interface : Angular 22 (composants autonomes, signaux, tests Vitest) |
-| `docker-compose.yml` | PostgreSQL et faux serveur de mail (Mailpit) pour le développement |
+| `docker-compose.yml` | PostgreSQL 17 (port hôte 5435) et faux serveur de mail (Mailpit) pour le développement |
 | `scripts/` | `dev.ps1` (démarrer en local), `build.ps1` (construire le JAR complet) |
 
 Le cœur métier est du Java pur, sans Spring (`backend/.../core/`) : calendrier et jours ouvrés, validation des lignes
@@ -40,6 +40,8 @@ npm start
 - Compte de développement : `admin@orpex.local` (mot de passe `dev-only-change-me`, profil `dev` uniquement).
 - Les mails envoyés en développement n'arrivent nulle part : ils s'affichent dans Mailpit, http://localhost:8025.
 - Vérifier que l'API répond : http://localhost:8080/actuator/health
+- Configuration : `application.properties` (commune, surchargeable par variables `ORPEX_*`) et
+  `application-dev.properties` (surcharges du profil `dev` : base Docker, Mailpit, compte de développement).
 
 ## Construire
 
@@ -53,13 +55,11 @@ Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et
 
 | Élément | Statut |
 | --- | --- |
-| Front Angular : menu, 4 pages vides, proxy vers l'API | Compile et ses 2 tests passent |
-| Cœur métier Java (calendrier, activation, validation des lignes, empreinte) | 25 tests passent (compilés avec javac 21 et un JUnit minimal de remplacement) |
-| Schéma SQL `V1__init.sql` | Appliqué sur PostgreSQL 16 ; unicités, contrôles et triggers de conservation vérifiés |
-| Partie Spring (`pom.xml`, configuration, sécurité, `/api/me`) | **Non compilée** : Maven Central n'était pas joignable pendant la génération |
-
-**Premier réflexe : lancer `mvn -f backend verify`** et me renvoyer les erreurs éventuelles. Les classes de
-Spring Security utilisées ont été vérifiées dans le code source de la branche principale, mais pas compilées.
+| Front Angular : menu, 4 pages vides, proxy vers l'API | Compile, 2 tests passent, s'affiche |
+| Cœur métier Java (calendrier, activation, validation des lignes, empreinte) | 25 tests passent |
+| Partie Spring (configuration, sécurité, `/api/me`) | Compile ; l'API démarre, connexion et `/api/me` vérifiées |
+| Schéma SQL `V1__init.sql` | Appliqué par Flyway sur PostgreSQL 17 |
+| Import Excel, envois, validation quotidienne, journal | Pas commencé (voir la feuille de route) |
 
 ## Écarts avec la spécification (à connaître)
 
@@ -73,11 +73,4 @@ Spring Security utilisées ont été vérifiées dans le code source de la branc
 
 ## Prochaines étapes
 
-1. `mvn verify` et correction des erreurs de compilation éventuelles.
-2. Comptes en base (lecture de `users`) et création du premier administrateur.
-3. Import Excel : lecteur (Apache POI, version figée) puis `RowValidator`, aperçu, création et mise à jour par `id`.
-4. Génération des envois (`ScheduleCalculator` + `ActivationPlanner`) à l'activation d'une ligne.
-5. Worker d'envoi (`SELECT ... FOR UPDATE SKIP LOCKED`) et implémentation SMTP de `MailGateway`.
-6. Validation quotidienne, journal d'audit, notifications.
-7. Écrans Angular : liste des relances, import avec aperçu, validation du jour, journal.
-8. Livraison : image Docker et JAR lançable comme service.
+Voir `orpex-docs/roadmaps/ROADMAP.md` : phases, critères de fin d'étape et journal d'avancement.
