@@ -31,6 +31,9 @@ public class AdminHolidayController {
         }
     }
 
+    public record YearAddedView(List<HolidayView> added, int alreadyPresent) {
+    }
+
     public record AddHolidayRequest(@NotNull LocalDate day, @NotBlank @Size(max = 200) String label) {
     }
 
@@ -49,6 +52,13 @@ public class AdminHolidayController {
     @ResponseStatus(HttpStatus.CREATED)
     public HolidayView add(@Valid @RequestBody AddHolidayRequest request) {
         return HolidayView.of(holidayService.add(request.day(), request.label()));
+    }
+
+    /** Ajoute les 11 jours fériés de France métropolitaine de l'année ; les dates déjà présentes sont ignorées. */
+    @PostMapping("/french/{year}")
+    public YearAddedView addFrenchHolidays(@PathVariable int year) {
+        HolidayService.YearAdded result = holidayService.addFrenchHolidays(year);
+        return new YearAddedView(result.added().stream().map(HolidayView::of).toList(), result.alreadyPresent());
     }
 
     @DeleteMapping("/{day}")

@@ -93,6 +93,26 @@ class AdminHolidayIT {
                 .andExpect(jsonPath("$.detail").value("Le 15/08/2027 n'est pas un jour férié."));
     }
 
+    @Test
+    void frenchHolidaysOfAYearAreAddedOnceWithoutTouchingExistingDays() throws Exception {
+        send(mvc, post("/api/admin/holidays").session(admin), "{\"day\":\"2028-12-25\",\"label\":\"Noël (siège)\"}")
+                .andExpect(status().isCreated());
+
+        send(mvc, post("/api/admin/holidays/french/2028").session(admin), "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added.length()").value(10))
+                .andExpect(jsonPath("$.alreadyPresent").value(1))
+                .andExpect(jsonPath("$.added[?(@.day == '2028-04-17')].label").value("Lundi de Pâques"));
+        send(mvc, post("/api/admin/holidays/french/2028").session(admin), "")
+                .andExpect(jsonPath("$.added.length()").value(0))
+                .andExpect(jsonPath("$.alreadyPresent").value(11));
+
+        mvc.perform(get("/api/admin/holidays").session(admin))
+                .andExpect(jsonPath("$[?(@.day == '2028-12-25')].label").value("Noël (siège)"));
+        send(mvc, post("/api/admin/holidays/french/1999").session(admin), "")
+                .andExpect(status().isBadRequest());
+    }
+
     private void account(String email, Role role) {
         if (accounts.findByEmail(email).isEmpty()) {
             accounts.save(new UserAccount(email, passwordEncoder.encode(PASSWORD), role));
