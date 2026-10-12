@@ -98,18 +98,32 @@ class AdminHolidayIT {
         send(mvc, post("/api/admin/holidays").session(admin), "{\"day\":\"2028-12-25\",\"label\":\"Noël (siège)\"}")
                 .andExpect(status().isCreated());
 
-        send(mvc, post("/api/admin/holidays/french/2028").session(admin), "")
+        send(mvc, post("/api/admin/holidays/national/FRANCE/2028").session(admin), "")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.added.length()").value(10))
                 .andExpect(jsonPath("$.alreadyPresent").value(1))
                 .andExpect(jsonPath("$.added[?(@.day == '2028-04-17')].label").value("Lundi de Pâques"));
-        send(mvc, post("/api/admin/holidays/french/2028").session(admin), "")
+        send(mvc, post("/api/admin/holidays/national/FRANCE/2028").session(admin), "")
                 .andExpect(jsonPath("$.added.length()").value(0))
                 .andExpect(jsonPath("$.alreadyPresent").value(11));
 
         mvc.perform(get("/api/admin/holidays").session(admin))
                 .andExpect(jsonPath("$[?(@.day == '2028-12-25')].label").value("Noël (siège)"));
-        send(mvc, post("/api/admin/holidays/french/1999").session(admin), "")
+        send(mvc, post("/api/admin/holidays/national/FRANCE/1999").session(admin), "")
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void maliHolidaysAddTheComputableDaysAndListTheOnesToEnterByHand() throws Exception {
+        mvc.perform(get("/api/admin/holidays/countries").session(admin))
+                .andExpect(jsonPath("$[?(@.code == 'MALI')].label").value("Mali"));
+
+        send(mvc, post("/api/admin/holidays/national/MALI/2029").session(admin), "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added.length()").value(8))
+                .andExpect(jsonPath("$.added[?(@.day == '2029-01-20')].label").value("Fête de l'Armée"))
+                .andExpect(jsonPath("$.manualDays.length()").value(4));
+        send(mvc, post("/api/admin/holidays/national/ATLANTIDE/2029").session(admin), "")
                 .andExpect(status().isBadRequest());
     }
 

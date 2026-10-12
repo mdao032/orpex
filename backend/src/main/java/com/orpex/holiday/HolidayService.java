@@ -1,7 +1,7 @@
 package com.orpex.holiday;
 
 import com.orpex.core.calendar.BusinessCalendar;
-import com.orpex.core.calendar.FrenchHolidays;
+import com.orpex.core.calendar.NationalHolidays;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -61,17 +61,17 @@ public class HolidayService {
     }
 
     /**
-     * Ajoute les jours fériés français de l'année. Une date déjà présente est laissée telle quelle (libellé compris) :
-     * l'administrateur peut avoir saisi ses propres libellés.
+     * Ajoute les jours fériés calculables du pays pour l'année. Une date déjà présente est laissée telle quelle
+     * (libellé compris) : l'administrateur peut avoir saisi ses propres libellés.
      */
     @Transactional
-    public YearAdded addFrenchHolidays(int year) {
+    public YearAdded addNationalHolidays(NationalHolidays.Country country, int year) {
         if (year < 2000 || year > 2100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisissez une année entre 2000 et 2100.");
         }
         List<Holiday> added = new ArrayList<>();
         int alreadyPresent = 0;
-        for (var entry : FrenchHolidays.of(year).entrySet()) {
+        for (var entry : NationalHolidays.of(country, year).entrySet()) {
             if (holidays.existsById(entry.getKey())) {
                 alreadyPresent++;
             } else {

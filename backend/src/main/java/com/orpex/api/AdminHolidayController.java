@@ -1,5 +1,6 @@
 package com.orpex.api;
 
+import com.orpex.core.calendar.NationalHolidays;
 import com.orpex.holiday.Holiday;
 import com.orpex.holiday.HolidayService;
 import jakarta.validation.Valid;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -31,7 +33,11 @@ public class AdminHolidayController {
         }
     }
 
-    public record YearAddedView(List<HolidayView> added, int alreadyPresent) {
+    /** {@code manualDays} : fêtes légales non calculées, à saisir à la main une fois leur date annoncée. */
+    public record YearAddedView(List<HolidayView> added, int alreadyPresent, List<String> manualDays) {
+    }
+
+    public record CountryView(NationalHolidays.Country code, String label, List<String> manualDays) {
     }
 
     public record AddHolidayRequest(@NotNull LocalDate day, @NotBlank @Size(max = 200) String label) {
@@ -54,11 +60,20 @@ public class AdminHolidayController {
         return HolidayView.of(holidayService.add(request.day(), request.label()));
     }
 
-    /** Ajoute les 11 jours fériés de France métropolitaine de l'année ; les dates déjà présentes sont ignorées. */
-    @PostMapping("/french/{year}")
-    public YearAddedView addFrenchHolidays(@PathVariable int year) {
-        HolidayService.YearAdded result = holidayService.addFrenchHolidays(year);
-        return new YearAddedView(result.added().stream().map(HolidayView::of).toList(), result.alreadyPresent());
+    /** Pays dont les jours fériés peuvent être ajoutés automatiquement. */
+    @GetMapping("/countries")
+    public List<CountryView> countries() {
+        return Arrays.stream(NationalHolidays.Country.values())
+                .map(country -> new CountryView(country, country.label(), country.manualDays()))
+                .toList();
+    }
+
+    /** Ajoute les jours fériés calculables du pays pour l'année ; les dates déjà présentes sont ignorées. */
+    @PostMapping("/national/{country}/{year}")
+    public YearAddedView addNationalHolidays(@PathVariable NationalHolidays.Country country, @PathVariable int year) {
+        HolidayService.YearAdded result = holidayService.addNationalHolidays(country, year);
+        return new YearAddedView(result.added().stream().map(HolidayView::of).toList(), result.alreadyPresent(),
+                country.manualDays());
     }
 
     @DeleteMapping("/{day}")
