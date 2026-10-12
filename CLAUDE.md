@@ -52,6 +52,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   (`must_change_password`) : `AccountStatusFilter` bloque l'API (403 `PASSWORD_CHANGE_REQUIRED`) sauf `/api/me` et
   `PUT /api/me/password`, et ferme la session d'un compte désactivé ou dont le rôle a changé. Mots de passe : 12 à 128
   caractères (`orpex.password.*`). Erreurs de l'API : RFC 9457, message pour l'utilisateur dans `detail`.
+- `backend/.../holiday/` : jours fériés (table `calendar_days`) ; `HolidayService.businessCalendar()` construit le
+  `BusinessCalendar` du cœur métier, à relire à chaque calcul d'envois.
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
