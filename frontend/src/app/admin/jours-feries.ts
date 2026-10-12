@@ -28,6 +28,20 @@ import { Holiday, HolidaysApi } from './holidays-api';
       </p>
     </section>
 
+    <section class="bloc" aria-labelledby="titre-france">
+      <h2 id="titre-france">Jours fériés français</h2>
+      <form class="creation" (submit)="ajouterFrance(annee.valueAsNumber); $event.preventDefault()">
+        <label>Année
+          <input #annee type="number" min="2000" max="2100" [value]="anneeCourante" required />
+        </label>
+        <button type="submit" [disabled]="enCours()">Ajouter les 11 jours fériés</button>
+      </form>
+      <p class="aide">
+        France métropolitaine, Pâques, Ascension et Pentecôte compris (hors Alsace-Moselle). Les dates déjà présentes
+        sont conservées telles quelles.
+      </p>
+    </section>
+
     @if (message(); as m) {
       <p [class]="m.erreur ? 'erreur' : 'info'" [attr.role]="m.erreur ? 'alert' : 'status'">{{ m.texte }}</p>
     }
@@ -64,6 +78,7 @@ export class JoursFeries implements OnInit {
   protected readonly joursFeries = signal<Holiday[]>([]);
   protected readonly message = signal<{ texte: string; erreur: boolean } | null>(null);
   protected readonly enCours = signal(false);
+  protected readonly anneeCourante = new Date().getFullYear();
 
   protected readonly ajout = inject(NonNullableFormBuilder).group({
     jour: ['', Validators.required],
@@ -84,6 +99,18 @@ export class JoursFeries implements OnInit {
       const ajoute = await this.api.add(jour, libelle);
       this.ajout.reset();
       return `${ajoute.label} ajouté.`;
+    });
+  }
+
+  protected async ajouterFrance(annee: number): Promise<void> {
+    if (!Number.isInteger(annee)) {
+      this.message.set({ texte: 'Saisissez une année.', erreur: true });
+      return;
+    }
+    await this.executer(async () => {
+      const { added, alreadyPresent } = await this.api.addFrench(annee);
+      const ajoutes = added.length === 0 ? 'Aucun jour férié ajouté' : `${added.length} jour(s) férié(s) ajouté(s)`;
+      return `${ajoutes} pour ${annee}` + (alreadyPresent > 0 ? ` (${alreadyPresent} déjà présent(s)).` : '.');
     });
   }
 

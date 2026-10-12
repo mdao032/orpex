@@ -68,4 +68,24 @@ describe('JoursFeries', () => {
 
     expect(page.querySelector('[role="alert"]')?.textContent).toContain("n'est pas un jour férié");
   });
+
+  it('adds the French holidays of the chosen year and reports those already present', async () => {
+    const { page, stable } = await render([]);
+    const year = page.querySelectorAll('form')[1];
+    (year.querySelector('input') as HTMLInputElement).value = '2028';
+    year.dispatchEvent(new Event('submit'));
+
+    http.expectOne('/api/admin/holidays/french/2028').flush({
+      added: [{ day: '2028-01-01', label: "Jour de l'an" }],
+      alreadyPresent: 10,
+    });
+    await nextTick();
+    http.expectOne((req) => req.method === 'GET').flush([{ day: '2028-01-01', label: "Jour de l'an" }]);
+    await nextTick();
+    await stable();
+
+    expect(page.querySelector('[role="status"]')?.textContent).toContain(
+      '1 jour(s) férié(s) ajouté(s) pour 2028 (10 déjà présent(s)).',
+    );
+  });
 });
