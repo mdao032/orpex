@@ -110,9 +110,7 @@ public final class RowValidator {
                 if (sendDate == null) {
                     return null;
                 }
-                if (sendDate.isBefore(today)) {
-                    warnings.add("date_envoi : date passée, aucun envoi ne sera créé pour ce jour");
-                }
+                // Date passée : refusée par FileValidator (aucun envoi à venir, spécification §5).
                 return SchedulingRule.once(sendDate, only);
             }
             case AVANT_ECHEANCE -> {
