@@ -37,7 +37,8 @@ npm install
 npm start
 ```
 
-- Compte de développement : `admin@orpex.local` (mot de passe `dev-only-change-me`, profil `dev` uniquement).
+- Compte de développement : `admin@orpex.local` (mot de passe `dev-only-change-me`), créé au premier démarrage
+  en profil `dev` si la table `users` est vide.
 - Les mails envoyés en développement n'arrivent nulle part : ils s'affichent dans Mailpit, http://localhost:8025.
 - Vérifier que l'API répond : http://localhost:8080/actuator/health
 - Configuration : `application.properties` (commune, surchargeable par variables `ORPEX_*`) et
@@ -65,7 +66,6 @@ Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et
 
 - **Mots de passe** : encodeur par défaut de Spring Security (bcrypt) en attendant Argon2id (demande BouncyCastle).
 - **CSRF** : le `POST /login` est exclu de la protection pour l'instant (TODO dans `SecurityConfig`).
-- **Comptes** : un administrateur de démarrage lu dans la configuration remplace temporairement la table `users`.
 - **État `VALIDATED`** : ajouté dans la base (envoi validé, en attente de son heure), absent du schéma de la spécification.
 - **Fuseau horaire** : `Europe/Paris` par défaut, à confirmer avec la banque (spécification, section 15).
 - **Jour non ouvré** : un envoi ponctuel tombant un jour non ouvré est reporté au dernier jour ouvré précédent,

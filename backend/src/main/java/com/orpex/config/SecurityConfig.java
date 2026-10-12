@@ -5,11 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -59,22 +56,5 @@ class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
-
-    /**
-     * Compte administrateur de démarrage, lu dans la configuration. Remplacé à l'étape « comptes »
-     * par la lecture de la table {@code users}. Sans configuration, personne ne peut se connecter.
-     */
-    @Bean
-    UserDetailsService userDetailsService(OrpexProperties properties, PasswordEncoder encoder) {
-        OrpexProperties.BootstrapAdmin admin = properties.bootstrapAdmin();
-        if (admin == null || !admin.isConfigured()) {
-            return new InMemoryUserDetailsManager();
-        }
-        return new InMemoryUserDetailsManager(
-                User.withUsername(admin.email())
-                        .password(encoder.encode(admin.password()))
-                        .roles("ADMIN")
-                        .build());
     }
 }

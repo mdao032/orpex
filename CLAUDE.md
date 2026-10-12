@@ -42,6 +42,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../core/` : **Java pur, sans Spring**, testable sans base ni serveur.
   `calendar` (modes d'envoi, jours ouvrés, calcul des jours, activation), `importing` (validation des lignes,
   empreinte de configuration), `mail` (interface `MailGateway`, pas encore d'implémentation).
+- `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
+  `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
@@ -74,13 +76,12 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   connexion de l'administrateur de démarrage et `/api/me` fonctionnent. Le front s'affiche.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
-- Pas encore d'entité JPA.
+- Entité JPA : `UserAccount` (validée contre le schéma par `ddl-auto=validate`).
 
 ## Écarts connus avec la spécification
 
 - Mots de passe en bcrypt (encodeur par défaut) en attendant Argon2id (BouncyCastle).
 - `POST /login` exclu du CSRF (TODO dans `SecurityConfig`).
-- Administrateur de démarrage lu dans la configuration, en attendant la lecture de la table `users`.
 - État `VALIDATED` ajouté (absent du schéma de la spécification).
 - Fuseau horaire par défaut `Europe/Paris`, à confirmer. Un envoi ponctuel un jour non ouvré est reporté au jour ouvré
   précédent, à confirmer.

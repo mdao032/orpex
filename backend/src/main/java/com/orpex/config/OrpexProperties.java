@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param timezone                fuseau horaire unique de l'installation, utilisé pour les heures d'envoi
  * @param validationCutoffMinutes heure limite de validation, en minutes avant l'heure d'envoi
- * @param bootstrapAdmin          compte administrateur de démarrage (temporaire, avant la gestion des comptes en base)
+ * @param bootstrapAdmin          premier administrateur, créé au démarrage si la table {@code users} est vide
  */
 @ConfigurationProperties(prefix = "orpex")
 public record OrpexProperties(String timezone, int validationCutoffMinutes, BootstrapAdmin bootstrapAdmin) {
