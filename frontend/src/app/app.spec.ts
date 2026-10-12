@@ -32,7 +32,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('nav a').length).toBe(5); // 4 pages + Comptes (administrateur)
+    expect(compiled.querySelectorAll('nav a').length).toBe(6); // 4 pages + Comptes et Jours fériés (administrateur)
     expect(compiled.querySelector('.utilisateur')?.textContent).toContain('admin@orpex.local');
     expect(compiled.querySelector('.deconnexion')).not.toBeNull();
   });

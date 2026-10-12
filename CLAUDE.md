@@ -53,11 +53,12 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `PUT /api/me/password`, et ferme la session d'un compte désactivé ou dont le rôle a changé. Mots de passe : 12 à 128
   caractères (`orpex.password.*`). Erreurs de l'API : RFC 9457, message pour l'utilisateur dans `detail`.
 - `backend/.../holiday/` : jours fériés (table `calendar_days`) ; `HolidayService.businessCalendar()` construit le
-  `BusinessCalendar` du cœur métier, à relire à chaque calcul d'envois.
+  `BusinessCalendar` du cœur métier, à relire à chaque calcul d'envois. Administration : `/api/admin/holidays`.
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
   Messages d'erreur de l'API : `apiErrorMessage()` (`shared/api-error.ts`).
+  Pages admin dans `admin/` (comptes, jours fériés). Locale `fr` active (dates en français via `DatePipe`).
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
