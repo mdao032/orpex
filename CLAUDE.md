@@ -59,6 +59,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   les fêtes à date annoncée (fêtes musulmanes au Mali) sont listées pour une saisie à la main.
 - `backend/.../rule/` : entités `Rule` (table `rules`) et `ImportRecord` (`imports`). Les dépôts n'exposent que des
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
+- `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
+  valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
+  la confirmation renverra le même fichier (aucun état conservé entre aperçu et confirmation).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
