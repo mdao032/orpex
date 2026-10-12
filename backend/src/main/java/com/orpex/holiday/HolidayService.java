@@ -1,12 +1,22 @@
 package com.orpex.holiday;
 
 import com.orpex.core.calendar.BusinessCalendar;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-/** Fournit au cœur métier le calendrier des jours ouvrés, à partir des jours fériés en base. */
+/**
+ * Jours fériés configurés par l'administrateur, et calendrier des jours ouvrés qui en découle pour le cœur métier.
+ * Les messages des exceptions sont affichés tels quels à l'utilisateur.
+ */
 @Service
 public class HolidayService {
+
+    private static final DateTimeFormatter DISPLAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final HolidayRepository holidays;
 
@@ -21,5 +31,26 @@ public class HolidayService {
     @Transactional(readOnly = true)
     public BusinessCalendar businessCalendar() {
         return new BusinessCalendar(holidays.findAll().stream().map(Holiday::getDay).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Holiday> list() {
+        return holidays.findAllByOrderByDayAsc();
+    }
+
+    @Transactional
+    public Holiday add(LocalDate day, String label) {
+        if (holidays.existsById(day)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Le " + DISPLAY.format(day) + " est déjà un jour férié.");
+        }
+        return holidays.save(new Holiday(day, label));
+    }
+
+    @Transactional
+    public void remove(LocalDate day) {
+        if (!holidays.existsById(day)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Le " + DISPLAY.format(day) + " n'est pas un jour férié.");
+        }
+        holidays.deleteById(day);
     }
 }

@@ -1,6 +1,5 @@
 package com.orpex.api;
 
-import static com.orpex.CsrfSupport.realCsrf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.orpex.MockMvcSupport;
 import com.orpex.TestcontainersConfiguration;
 import com.orpex.account.Role;
 import com.orpex.account.UserAccount;
@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -170,13 +169,11 @@ class AdminAccountIT {
     }
 
     private ResultActions attemptLogin(String email, String password) throws Exception {
-        return mvc.perform(post("/login").param("username", email).param("password", password).with(realCsrf(mvc)));
+        return MockMvcSupport.attemptLogin(mvc, email, password);
     }
 
     private MockHttpSession login(String email, String password) throws Exception {
-        return (MockHttpSession) attemptLogin(email, password)
-                .andExpect(status().isOk())
-                .andReturn().getRequest().getSession(false);
+        return MockMvcSupport.login(mvc, email, password);
     }
 
     private ResultActions changeOwnPassword(MockHttpSession session, String current, String next) throws Exception {
@@ -185,6 +182,6 @@ class AdminAccountIT {
     }
 
     private ResultActions perform(MockHttpServletRequestBuilder request, String json) throws Exception {
-        return mvc.perform(request.with(realCsrf(mvc)).contentType(MediaType.APPLICATION_JSON).content(json));
+        return MockMvcSupport.send(mvc, request, json);
     }
 }
