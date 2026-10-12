@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { apiErrorMessage } from '../shared/api-error';
-import { Holiday, HolidaysApi } from './holidays-api';
+import { Country, Holiday, HolidaysApi } from './holidays-api';
 
 @Component({
   selector: 'app-jours-feries',
@@ -28,22 +28,35 @@ import { Holiday, HolidaysApi } from './holidays-api';
       </p>
     </section>
 
-    <section class="bloc" aria-labelledby="titre-france">
-      <h2 id="titre-france">Jours fériés français</h2>
-      <form class="creation" (submit)="ajouterFrance(annee.valueAsNumber); $event.preventDefault()">
+    <section class="bloc" aria-labelledby="titre-pays">
+      <h2 id="titre-pays">Jours fériés d'un pays</h2>
+      <form class="creation" (submit)="ajouterPays(pays.value, annee.valueAsNumber); $event.preventDefault()">
+        <label>Pays
+          <select #pays>
+            @for (p of pays_(); track p.code) {
+              <option [value]="p.code">{{ p.label }}</option>
+            }
+          </select>
+        </label>
         <label>Année
           <input #annee type="number" min="2000" max="2100" [value]="anneeCourante" required />
         </label>
-        <button type="submit" [disabled]="enCours()">Ajouter les 11 jours fériés</button>
+        <button type="submit" [disabled]="enCours() || pays_().length === 0">Ajouter les jours fériés</button>
       </form>
       <p class="aide">
-        France métropolitaine, Pâques, Ascension et Pentecôte compris (hors Alsace-Moselle). Les dates déjà présentes
-        sont conservées telles quelles.
+        Seuls les jours calculables avec certitude sont ajoutés (dates fixes, Pâques et fêtes qui en dépendent).
+        Les dates déjà présentes sont conservées telles quelles.
       </p>
     </section>
 
     @if (message(); as m) {
       <p [class]="m.erreur ? 'erreur' : 'info'" [attr.role]="m.erreur ? 'alert' : 'status'">{{ m.texte }}</p>
+    }
+
+    @if (aSaisir().length > 0) {
+      <p class="info" role="note">
+        À saisir à la main une fois leur date officielle annoncée (calendrier lunaire) : {{ aSaisir().join(', ') }}.
+      </p>
     }
 
     @if (joursFeries().length === 0) {
@@ -79,6 +92,8 @@ export class JoursFeries implements OnInit {
   protected readonly message = signal<{ texte: string; erreur: boolean } | null>(null);
   protected readonly enCours = signal(false);
   protected readonly anneeCourante = new Date().getFullYear();
+  protected readonly pays_ = signal<Country[]>([]);
+  protected readonly aSaisir = signal<string[]>([]);
 
   protected readonly ajout = inject(NonNullableFormBuilder).group({
     jour: ['', Validators.required],
@@ -87,6 +102,11 @@ export class JoursFeries implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.recharger();
+    try {
+      this.pays_.set(await this.api.countries());
+    } catch (error) {
+      this.message.set({ texte: apiErrorMessage(error), erreur: true });
+    }
   }
 
   protected async ajouter(): Promise<void> {
@@ -102,15 +122,18 @@ export class JoursFeries implements OnInit {
     });
   }
 
-  protected async ajouterFrance(annee: number): Promise<void> {
+  protected async ajouterPays(code: string, annee: number): Promise<void> {
     if (!Number.isInteger(annee)) {
       this.message.set({ texte: 'Saisissez une année.', erreur: true });
       return;
     }
+    const nom = this.pays_().find((p) => p.code === code)?.label ?? code;
+    this.aSaisir.set([]);
     await this.executer(async () => {
-      const { added, alreadyPresent } = await this.api.addFrench(annee);
+      const { added, alreadyPresent, manualDays } = await this.api.addNational(code, annee);
+      this.aSaisir.set(manualDays);
       const ajoutes = added.length === 0 ? 'Aucun jour férié ajouté' : `${added.length} jour(s) férié(s) ajouté(s)`;
-      return `${ajoutes} pour ${annee}` + (alreadyPresent > 0 ? ` (${alreadyPresent} déjà présent(s)).` : '.');
+      return `${ajoutes} pour ${nom} ${annee}` + (alreadyPresent > 0 ? ` (${alreadyPresent} déjà présent(s)).` : '.');
     });
   }
 

@@ -8,9 +8,17 @@ export interface Holiday {
   label: string;
 }
 
+export interface Country {
+  code: string;
+  label: string;
+  /** Fêtes légales non calculées (calendrier lunaire), à saisir à la main une fois leur date annoncée. */
+  manualDays: string[];
+}
+
 export interface YearAdded {
   added: Holiday[];
   alreadyPresent: number;
+  manualDays: string[];
 }
 
 /** API des jours fériés (/api/admin/holidays). */
@@ -27,9 +35,14 @@ export class HolidaysApi {
     return firstValueFrom(this.http.post<Holiday>(this.base, { day, label }));
   }
 
-  /** Ajoute les 11 jours fériés de France métropolitaine de l'année ; les dates déjà présentes sont ignorées. */
-  addFrench(year: number): Promise<YearAdded> {
-    return firstValueFrom(this.http.post<YearAdded>(`${this.base}/french/${year}`, null));
+  /** Pays dont les jours fériés peuvent être ajoutés automatiquement. */
+  countries(): Promise<Country[]> {
+    return firstValueFrom(this.http.get<Country[]>(`${this.base}/countries`));
+  }
+
+  /** Ajoute les jours fériés calculables du pays pour l'année ; les dates déjà présentes sont ignorées. */
+  addNational(country: string, year: number): Promise<YearAdded> {
+    return firstValueFrom(this.http.post<YearAdded>(`${this.base}/national/${country}/${year}`, null));
   }
 
   remove(day: string): Promise<void> {

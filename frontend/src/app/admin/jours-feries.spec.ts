@@ -21,6 +21,11 @@ describe('JoursFeries', () => {
     fixture.detectChanges();
     http.expectOne('/api/admin/holidays').flush(holidays);
     await nextTick();
+    http.expectOne('/api/admin/holidays/countries').flush([
+      { code: 'FRANCE', label: 'France métropolitaine', manualDays: [] },
+      { code: 'MALI', label: 'Mali', manualDays: ['Korité (fin du Ramadan)', 'Tabaski'] },
+    ]);
+    await nextTick();
     await fixture.whenStable();
     return { page: fixture.nativeElement as HTMLElement, stable: () => fixture.whenStable() };
   }
@@ -69,23 +74,27 @@ describe('JoursFeries', () => {
     expect(page.querySelector('[role="alert"]')?.textContent).toContain("n'est pas un jour férié");
   });
 
-  it('adds the French holidays of the chosen year and reports those already present', async () => {
+  it('adds the holidays of the chosen country and year, and lists those to enter by hand', async () => {
     const { page, stable } = await render([]);
-    const year = page.querySelectorAll('form')[1];
-    (year.querySelector('input') as HTMLInputElement).value = '2028';
-    year.dispatchEvent(new Event('submit'));
+    await stable();
+    const form = page.querySelectorAll('form')[1];
+    (form.querySelector('select') as HTMLSelectElement).value = 'MALI';
+    (form.querySelector('input') as HTMLInputElement).value = '2028';
+    form.dispatchEvent(new Event('submit'));
 
-    http.expectOne('/api/admin/holidays/french/2028').flush({
-      added: [{ day: '2028-01-01', label: "Jour de l'an" }],
-      alreadyPresent: 10,
+    http.expectOne('/api/admin/holidays/national/MALI/2028').flush({
+      added: [{ day: '2028-01-20', label: "Fête de l'Armée" }],
+      alreadyPresent: 7,
+      manualDays: ['Korité (fin du Ramadan)', 'Tabaski'],
     });
     await nextTick();
-    http.expectOne((req) => req.method === 'GET').flush([{ day: '2028-01-01', label: "Jour de l'an" }]);
+    http.expectOne((req) => req.method === 'GET').flush([{ day: '2028-01-20', label: "Fête de l'Armée" }]);
     await nextTick();
     await stable();
 
     expect(page.querySelector('[role="status"]')?.textContent).toContain(
-      '1 jour(s) férié(s) ajouté(s) pour 2028 (10 déjà présent(s)).',
+      '1 jour(s) férié(s) ajouté(s) pour Mali 2028 (7 déjà présent(s)).',
     );
+    expect(page.querySelector('[role="note"]')?.textContent).toContain('Korité (fin du Ramadan), Tabaski');
   });
 });
