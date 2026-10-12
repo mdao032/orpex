@@ -41,8 +41,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 ## Architecture du code
 
 - `backend/.../core/` : **Java pur, sans Spring**, testable sans base ni serveur.
-  `calendar` (modes d'envoi, jours ouvrés, calcul des jours, activation), `importing` (validation des lignes,
-  empreinte de configuration), `mail` (interface `MailGateway`, pas encore d'implémentation).
+  `calendar` (modes d'envoi, jours ouvrés, calcul des jours, activation), `importing` (lecture .xlsx `XlsxReader`
+  avec Apache POI, validation des lignes, empreinte de configuration), `mail` (interface `MailGateway`, pas encore d'implémentation).
 - `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
   `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
   Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.

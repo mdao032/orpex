@@ -21,6 +21,8 @@
     <java.version>21</java.version>
     <!-- Non gérée par Spring Boot : requise par Argon2PasswordEncoder. -->
     <bouncycastle.version>1.86</bouncycastle.version>
+    <!-- Non gérée par Spring Boot : lecture des fichiers .xlsx. -->
+    <poi.version>5.5.1</poi.version>
   </properties>
 
   <dependencies>
@@ -71,7 +73,12 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-    <!-- À ajouter à l'étape « import Excel » : Apache POI (poi-ooxml), avec une version figée. -->
+    <!-- Lecture des fichiers Excel (.xlsx) -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>${poi.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
