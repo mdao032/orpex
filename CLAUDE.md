@@ -77,11 +77,12 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   connexion de l'administrateur de démarrage et `/api/me` fonctionnent. Le front s'affiche.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
+- CSRF actif sur toutes les requêtes qui modifient, `POST /login` compris. Dans les tests MockMvc, utiliser
+  `CsrfSupport.realCsrf(mvc)`, **jamais** `csrf()` de spring-security-test (il casse le cookie pour tout le contexte partagé).
 - Entité JPA : `UserAccount` (validée contre le schéma par `ddl-auto=validate`).
 
 ## Écarts connus avec la spécification
 
-- `POST /login` exclu du CSRF (TODO dans `SecurityConfig`).
 - État `VALIDATED` ajouté (absent du schéma de la spécification).
 - Fuseau horaire par défaut `Europe/Paris`, à confirmer. Un envoi ponctuel un jour non ouvré est reporté au jour ouvré
   précédent, à confirmer.

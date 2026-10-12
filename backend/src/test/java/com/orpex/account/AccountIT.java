@@ -1,5 +1,6 @@
 package com.orpex.account;
 
+import static com.orpex.CsrfSupport.realCsrf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -90,11 +91,11 @@ class AccountIT {
         String bcryptHash = "{bcrypt}" + new BCryptPasswordEncoder().encode("ancien-mot-de-passe");
         accounts.save(new UserAccount("ancien@test.local", bcryptHash, Role.USER));
 
-        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "faux"))
+        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "faux").with(realCsrf(mvc)))
                 .andExpect(status().isUnauthorized());
         assertThat(accounts.findByEmail("ancien@test.local").orElseThrow().getPasswordHash()).isEqualTo(bcryptHash);
 
-        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "ancien-mot-de-passe"))
+        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "ancien-mot-de-passe").with(realCsrf(mvc)))
                 .andExpect(status().isOk());
         String upgraded = accounts.findByEmail("ancien@test.local").orElseThrow().getPasswordHash();
         assertThat(upgraded).startsWith("{argon2}");
