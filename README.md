@@ -65,7 +65,7 @@ Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et
 ## Écarts avec la spécification (à connaître)
 
 - **État `VALIDATED`** : ajouté dans la base (envoi validé, en attente de son heure), absent du schéma de la spécification.
-- **Fuseau horaire** : `Europe/Paris` par défaut, à confirmer avec la banque (spécification, section 15).
+- **Fuseau horaire** : `Africa/Bamako` par défaut (pilote au Mali), réglable par `ORPEX_TIMEZONE`.
 - **Jour non ouvré** : un envoi ponctuel tombant un jour non ouvré est reporté au dernier jour ouvré précédent,
   comme le dernier envoi d'une série « avant échéance ». À confirmer.
 

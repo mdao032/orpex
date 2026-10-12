@@ -12,7 +12,8 @@ Documents hors dépôt (dossier `E:\Projets\orpex-docs`) :
 Un utilisateur importe un fichier Excel : chaque ligne = un destinataire, un message et un calendrier d'envoi.
 L'application calcule les jours d'envoi, demande si besoin une validation quotidienne, puis envoie automatiquement
 par le relais SMTP de la banque. Cas d'usage : relances et rappels individualisés (facturation, suivi client), d'abord
-vers d'autres départements de la banque (pas de données clients dans le pilote).
+vers d'autres départements de la banque (pas de données clients dans le pilote). **Le pilote se déroule au Mali** :
+fuseau `Africa/Bamako`, jours fériés maliens.
 L'humain rédige les messages ; la machine ne fait que planifier et expédier. L'intérêt du produit est l'automatisme.
 
 ## Pile technique
@@ -61,6 +62,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
   Messages d'erreur de l'API : `apiErrorMessage()` (`shared/api-error.ts`).
   Pages admin dans `admin/` (comptes, jours fériés). Locale `fr` active (dates en français via `DatePipe`).
+- Heure : bean `Clock` dans le fuseau `orpex.timezone` (défaut `Africa/Bamako`, invalide = démarrage refusé). Calculer
+  « aujourd'hui » et les heures d'envoi avec ce `Clock`, jamais avec le fuseau du serveur.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
@@ -100,8 +103,7 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 ## Écarts connus avec la spécification
 
 - État `VALIDATED` ajouté (absent du schéma de la spécification).
-- Fuseau horaire par défaut `Europe/Paris`, à confirmer. Un envoi ponctuel un jour non ouvré est reporté au jour ouvré
-  précédent, à confirmer.
+- Un envoi ponctuel un jour non ouvré est reporté au jour ouvré précédent, à confirmer.
 
 ## Prochaines étapes
 

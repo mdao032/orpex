@@ -2,6 +2,8 @@ package com.orpex;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Clock;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +21,9 @@ class OrpexApplicationIT {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    Clock clock;
+
     @Test
     void contextStartsAndAllMigrationsSucceed() {
         Integer failed = jdbc.queryForObject(
@@ -28,5 +33,10 @@ class OrpexApplicationIT {
 
         assertThat(failed).isZero();
         assertThat(applied).isPositive();
+    }
+
+    @Test
+    void applicationClockUsesTheInstallationTimezoneOfThePilot() {
+        assertThat(clock.getZone()).isEqualTo(ZoneId.of("Africa/Bamako"));
     }
 }
