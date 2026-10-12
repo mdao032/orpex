@@ -36,3 +36,24 @@ nav {
   margin: 0 auto;
   padding: 1.5rem;
 }
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.utilisateur {
+  color: var(--orpex-ink-soft);
+}
+
+.deconnexion {
+  padding: 0.3rem 0.75rem;
+  font: inherit;
+  color: var(--orpex-accent);
+  background: none;
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+  cursor: pointer;
+}

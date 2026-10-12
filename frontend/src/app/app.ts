@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Auth } from './auth/auth';
 
 @Component({
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
@@ -8,6 +9,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   templateUrl: './app.html',
 })
 export class App {
+  protected readonly auth = inject(Auth);
+  private readonly router = inject(Router);
+
   protected readonly title = 'ORPEX';
   protected readonly menu = [
     { chemin: '/lignes', libelle: 'Relances' },
@@ -15,4 +19,9 @@ export class App {
     { chemin: '/validation', libelle: 'Validation du jour' },
     { chemin: '/journal', libelle: 'Journal' },
   ];
+
+  protected async seDeconnecter(): Promise<void> {
+    await this.auth.logout();
+    await this.router.navigate(['/connexion']);
+  }
 }

@@ -1,0 +1,58 @@
+.carte {
+  max-width: 24rem;
+  margin: 4rem auto 0;
+  padding: 2rem;
+  background: var(--orpex-surface);
+  border: 1px solid var(--orpex-line);
+  border-radius: 6px;
+}
+
+h1 {
+  margin: 0 0 1.25rem;
+  font-size: 1.4rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+label {
+  margin-top: 0.6rem;
+  font-weight: 600;
+}
+
+input {
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+}
+
+button {
+  margin-top: 1.25rem;
+  padding: 0.6rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--orpex-accent-ink);
+  background: var(--orpex-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.erreur {
+  margin: 0.75rem 0 0;
+  color: var(--orpex-danger);
+}
+
+.info {
+  margin: 0 0 1rem;
+  color: var(--orpex-ink-soft);
+}
