@@ -45,6 +45,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
   `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
   Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.
+  Verrouillage temporaire après échecs (`orpex.login.*`, 5 échecs → 15 min) par `LoginAttemptListener` ; même 401
+  pour mauvais mot de passe, compte inconnu ou verrouillé. Session : 30 min d'inactivité, `POST /logout`.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.

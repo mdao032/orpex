@@ -1,0 +1,50 @@
+package com.orpex.account;
+
+import com.orpex.config.OrpexProperties;
+import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+import org.springframework.security.authentication.event.AuthenticationFailureBadCredentialsEvent;
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * Compte les échecs de connexion et verrouille temporairement le compte (spécification §3).
+ * Un email inconnu n'a pas de ligne en base : rien n'est compté. Une tentative sur un compte déjà verrouillé
+ * n'est pas un échec de mot de passe et ne prolonge pas le verrouillage.
+ */
+@Component
+class LoginAttemptListener {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginAttemptListener.class);
+
+    private final UserAccountRepository accounts;
+    private final OrpexProperties.Login settings;
+
+    LoginAttemptListener(UserAccountRepository accounts, OrpexProperties properties) {
+        this.accounts = accounts;
+        this.settings = properties.login();
+    }
+
+    @EventListener
+    @Transactional
+    public void onBadCredentials(AuthenticationFailureBadCredentialsEvent event) {
+        Instant now = Instant.now();
+        accounts.findByEmail(UserAccount.normalizeEmail(event.getAuthentication().getName())).ifPresent(account -> {
+            account.recordFailedLogin(settings.maxFailedAttempts(), settings.lockDuration(), now);
+            if (account.isLockedAt(now)) {
+                log.warn("Compte {} verrouillé jusqu'à {} après {} échecs de connexion",
+                        account.getEmail(), account.getLockedUntil(), settings.maxFailedAttempts());
+            }
+        });
+    }
+
+    @EventListener
+    @Transactional
+    public void onSuccess(AuthenticationSuccessEvent event) {
+        accounts.findByEmail(UserAccount.normalizeEmail(event.getAuthentication().getName()))
+                .ifPresent(account -> account.recordSuccessfulLogin(Instant.now()));
+    }
+}

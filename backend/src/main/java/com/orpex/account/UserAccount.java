@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 
@@ -64,6 +65,26 @@ public class UserAccount {
     /** {@code passwordHash} est déjà haché, jamais un mot de passe en clair. */
     public void changePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    /** Verrouillage temporaire en cours : la connexion est refusée sans même vérifier le mot de passe. */
+    public boolean isLockedAt(Instant now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
+    }
+
+    /** Échec de connexion : au {@code maxFailedAttempts}-ième échec consécutif, le compte est verrouillé. */
+    public void recordFailedLogin(int maxFailedAttempts, Duration lockDuration, Instant now) {
+        failedAttempts++;
+        if (failedAttempts >= maxFailedAttempts) {
+            lockedUntil = now.plus(lockDuration);
+            failedAttempts = 0;
+        }
+    }
+
+    public void recordSuccessfulLogin(Instant now) {
+        failedAttempts = 0;
+        lockedUntil = null;
+        lastLoginAt = now;
     }
 
     /** Un compte désactivé ne peut plus se connecter ; il n'est jamais supprimé (il reste cité par l'historique). */

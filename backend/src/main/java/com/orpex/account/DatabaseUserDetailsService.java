@@ -1,5 +1,6 @@
 package com.orpex.account;
 
+import java.time.Instant;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsPasswordService;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Connexion par les comptes de la table {@code users} ; un compte désactivé ne peut pas se connecter.
+ * Connexion par les comptes de la table {@code users} ; un compte désactivé ou verrouillé ne peut pas se connecter.
  * Après une connexion réussie avec un hachage ancien (bcrypt), Spring Security appelle {@link #updatePassword}
  * pour le remplacer par un hachage Argon2id.
  */
@@ -31,6 +32,7 @@ public class DatabaseUserDetailsService implements UserDetailsService, UserDetai
                 .password(account.getPasswordHash())
                 .roles(account.getRole().name())
                 .disabled(!account.isEnabled())
+                .accountLocked(account.isLockedAt(Instant.now()))
                 .build();
     }
 
