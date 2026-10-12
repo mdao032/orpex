@@ -44,6 +44,7 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   empreinte de configuration), `mail` (interface `MailGateway`, pas encore d'implémentation).
 - `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
   `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
+  Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
@@ -80,7 +81,6 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## Écarts connus avec la spécification
 
-- Mots de passe en bcrypt (encodeur par défaut) en attendant Argon2id (BouncyCastle).
 - `POST /login` exclu du CSRF (TODO dans `SecurityConfig`).
 - État `VALIDATED` ajouté (absent du schéma de la spécification).
 - Fuseau horaire par défaut `Europe/Paris`, à confirmer. Un envoi ponctuel un jour non ouvré est reporté au jour ouvré

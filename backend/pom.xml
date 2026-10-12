@@ -19,6 +19,8 @@
 
   <properties>
     <java.version>21</java.version>
+    <!-- Non gérée par Spring Boot : requise par Argon2PasswordEncoder. -->
+    <bouncycastle.version>1.86</bouncycastle.version>
   </properties>
 
   <dependencies>
@@ -53,6 +55,12 @@
       <scope>runtime</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
+    </dependency>
+
     <!-- Envoi des mails (SMTP) et supervision -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -68,6 +76,17 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Requêtes HTTP simulées (MockMvc) passant par les filtres de sécurité, et outils de test de Spring Security. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security-test</artifactId>
       <scope>test</scope>
     </dependency>
     <!-- Base PostgreSQL jetable pour les tests d'intégration (versions gérées par Spring Boot). Docker requis. -->

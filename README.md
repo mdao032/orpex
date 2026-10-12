@@ -64,7 +64,6 @@ Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et
 
 ## Écarts avec la spécification (à connaître)
 
-- **Mots de passe** : encodeur par défaut de Spring Security (bcrypt) en attendant Argon2id (demande BouncyCastle).
 - **CSRF** : le `POST /login` est exclu de la protection pour l'instant (TODO dans `SecurityConfig`).
 - **État `VALIDATED`** : ajouté dans la base (envoi validé, en attente de son heure), absent du schéma de la spécification.
 - **Fuseau horaire** : `Europe/Paris` par défaut, à confirmer avec la banque (spécification, section 15).

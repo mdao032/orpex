@@ -2,22 +2,28 @@ package com.orpex.account;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.orpex.TestcontainersConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
         "orpex.bootstrap-admin.email= Admin@Test.Local ",
         "orpex.bootstrap-admin.password=secret-de-test"
 })
+@AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class AccountIT {
 
@@ -33,13 +39,16 @@ class AccountIT {
     @Autowired
     PasswordEncoder passwordEncoder;
 
+    @Autowired
+    MockMvc mvc;
+
     @Test
     void emptyDatabaseGetsTheConfiguredAdminWithHashedPassword() {
         UserAccount admin = accounts.findByEmail("admin@test.local").orElseThrow();
 
         assertThat(admin.getRole()).isEqualTo(Role.ADMIN);
         assertThat(admin.isEnabled()).isTrue();
-        assertThat(admin.getPasswordHash()).isNotEqualTo("secret-de-test");
+        assertThat(admin.getPasswordHash()).startsWith("{argon2}");
         assertThat(passwordEncoder.matches("secret-de-test", admin.getPasswordHash())).isTrue();
     }
 
@@ -74,5 +83,21 @@ class AccountIT {
     void unknownAccountIsRejected() {
         assertThatThrownBy(() -> userDetailsService.loadUserByUsername("inconnu@test.local"))
                 .isInstanceOf(UsernameNotFoundException.class);
+    }
+
+    @Test
+    void bcryptHashIsReplacedByArgon2idAfterSuccessfulLogin() throws Exception {
+        String bcryptHash = "{bcrypt}" + new BCryptPasswordEncoder().encode("ancien-mot-de-passe");
+        accounts.save(new UserAccount("ancien@test.local", bcryptHash, Role.USER));
+
+        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "faux"))
+                .andExpect(status().isUnauthorized());
+        assertThat(accounts.findByEmail("ancien@test.local").orElseThrow().getPasswordHash()).isEqualTo(bcryptHash);
+
+        mvc.perform(post("/login").param("username", "ancien@test.local").param("password", "ancien-mot-de-passe"))
+                .andExpect(status().isOk());
+        String upgraded = accounts.findByEmail("ancien@test.local").orElseThrow().getPasswordHash();
+        assertThat(upgraded).startsWith("{argon2}");
+        assertThat(passwordEncoder.matches("ancien-mot-de-passe", upgraded)).isTrue();
     }
 }

@@ -1,11 +1,14 @@
 package com.orpex.config;
 
+import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -50,11 +53,14 @@ class SecurityConfig {
     }
 
     /**
-     * Encodeur par défaut de Spring Security (bcrypt, avec préfixe d'algorithme dans la valeur stockée).
-     * TODO : passer à Argon2id comme le prévoit la spécification (nécessite la bibliothèque BouncyCastle).
+     * Nouveaux mots de passe hachés en Argon2id (spécification §3). Les hachages bcrypt déjà en base restent lisibles
+     * et sont convertis en Argon2id à la connexion réussie suivante (voir {@code DatabaseUserDetailsService}).
      */
     @Bean
     PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+        Map<String, PasswordEncoder> encoders = Map.of(
+                "argon2", Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8(),
+                "bcrypt", new BCryptPasswordEncoder());
+        return new DelegatingPasswordEncoder("argon2", encoders);
     }
 }

@@ -61,6 +61,11 @@ public class UserAccount {
         return email == null ? null : email.strip().toLowerCase(Locale.ROOT);
     }
 
+    /** {@code passwordHash} est déjà haché, jamais un mot de passe en clair. */
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     /** Un compte désactivé ne peut plus se connecter ; il n'est jamais supprimé (il reste cité par l'historique). */
     public void disable() {
         this.enabled = false;
