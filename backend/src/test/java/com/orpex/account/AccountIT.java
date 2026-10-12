@@ -50,6 +50,7 @@ class AccountIT {
         assertThat(admin.getRole()).isEqualTo(Role.ADMIN);
         assertThat(admin.isEnabled()).isTrue();
         assertThat(admin.getPasswordHash()).startsWith("{argon2}");
+        assertThat(admin.isMustChangePassword()).as("mot de passe connu de l'IT : provisoire").isTrue();
         assertThat(passwordEncoder.matches("secret-de-test", admin.getPasswordHash())).isTrue();
     }
 

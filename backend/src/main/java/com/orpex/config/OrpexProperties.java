@@ -10,10 +10,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param validationCutoffMinutes heure limite de validation, en minutes avant l'heure d'envoi
  * @param bootstrapAdmin          premier administrateur, créé au démarrage si la table {@code users} est vide
  * @param login                   limitation des tentatives de connexion
+ * @param password                règles des mots de passe choisis par les utilisateurs
  */
 @ConfigurationProperties(prefix = "orpex")
 public record OrpexProperties(String timezone, int validationCutoffMinutes, BootstrapAdmin bootstrapAdmin,
-        Login login) {
+        Login login, Password password) {
 
     public record BootstrapAdmin(String email, String password) {
 
@@ -27,5 +28,12 @@ public record OrpexProperties(String timezone, int validationCutoffMinutes, Boot
      * @param lockDuration      durée du verrouillage temporaire
      */
     public record Login(int maxFailedAttempts, Duration lockDuration) {
+    }
+
+    /**
+     * @param minLength longueur minimale (recommandation ANSSI/OWASP : 12), sans autre règle de complexité
+     * @param maxLength longueur maximale, pour borner le coût du hachage
+     */
+    public record Password(int minLength, int maxLength) {
     }
 }

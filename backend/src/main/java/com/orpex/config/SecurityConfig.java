@@ -1,5 +1,7 @@
 package com.orpex.config;
 
+import com.orpex.account.AccountStatusFilter;
+import com.orpex.account.UserAccountRepository;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
@@ -30,7 +33,7 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, UserAccountRepository accounts) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**").permitAll()
@@ -58,7 +61,9 @@ class SecurityConfig {
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
-                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
+                .addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
+                // État du compte relu en base : désactivation, rôle changé, mot de passe provisoire.
+                .addFilterAfter(new AccountStatusFilter(accounts), AuthorizationFilter.class);
         return http.build();
     }
 

@@ -11,7 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Premier démarrage : si aucun compte n'existe, crée l'administrateur décrit par {@code orpex.bootstrap-admin.*}.
- * Dès qu'un compte existe, cette configuration est ignorée (elle ne réinitialise jamais un mot de passe).
+ * Son mot de passe est provisoire : il devra le changer à la première connexion. Dès qu'un compte existe, cette
+ * configuration est ignorée (elle ne réinitialise jamais un mot de passe).
  */
 @Component
 class BootstrapAdminInitializer implements ApplicationRunner {
@@ -42,7 +43,7 @@ class BootstrapAdminInitializer implements ApplicationRunner {
             return;
         }
         UserAccount created = accounts.save(
-                new UserAccount(admin.email(), passwordEncoder.encode(admin.password()), Role.ADMIN));
+                UserAccount.withTemporaryPassword(admin.email(), passwordEncoder.encode(admin.password()), Role.ADMIN));
         log.info("Premier administrateur créé : {}", created.getEmail());
     }
 }

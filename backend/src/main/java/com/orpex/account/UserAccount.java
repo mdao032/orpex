@@ -46,6 +46,9 @@ public class UserAccount {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
     protected UserAccount() {
         // JPA
     }
@@ -57,14 +60,44 @@ public class UserAccount {
         this.createdAt = Instant.now();
     }
 
+    /** Compte dont le mot de passe a été choisi par quelqu'un d'autre : il devra le changer à sa première connexion. */
+    public static UserAccount withTemporaryPassword(String email, String passwordHash, Role role) {
+        UserAccount account = new UserAccount(email, passwordHash, role);
+        account.mustChangePassword = true;
+        return account;
+    }
+
     /** Forme sous laquelle un email est stocké et recherché : deux saisies de la même adresse désignent un seul compte. */
     public static String normalizeEmail(String email) {
         return email == null ? null : email.strip().toLowerCase(Locale.ROOT);
     }
 
-    /** {@code passwordHash} est déjà haché, jamais un mot de passe en clair. */
+    /**
+     * Nouveau hachage du même mot de passe (conversion bcrypt → Argon2id) : le caractère provisoire est conservé.
+     * {@code passwordHash} est déjà haché, jamais un mot de passe en clair.
+     */
     public void changePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    /** L'utilisateur a choisi lui-même son nouveau mot de passe. */
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.mustChangePassword = false;
+    }
+
+    /** Mot de passe défini par un administrateur : provisoire, à changer à la connexion suivante. */
+    public void resetPassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.mustChangePassword = true;
+    }
+
+    public void enable() {
+        this.enabled = true;
+    }
+
+    public void changeRole(Role role) {
+        this.role = role;
     }
 
     /** Verrouillage temporaire en cours : la connexion est refusée sans même vérifier le mot de passe. */
@@ -126,5 +159,9 @@ public class UserAccount {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
     }
 }
