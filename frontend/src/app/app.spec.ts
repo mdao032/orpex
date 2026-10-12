@@ -22,17 +22,17 @@ describe('App', () => {
     expect(compiled.querySelector('.deconnexion')).toBeNull();
   });
 
-  it('shows the main menu and the logged-in user', async () => {
+  it('shows the main menu, the admin entry and the logged-in user', async () => {
     const refreshed = TestBed.inject(Auth).refresh();
     TestBed.inject(HttpTestingController)
       .expectOne('/api/me')
-      .flush({ email: 'admin@orpex.local', roles: ['ROLE_ADMIN'] });
+      .flush({ email: 'admin@orpex.local', roles: ['ROLE_ADMIN'], mustChangePassword: false });
     await refreshed;
 
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('nav a').length).toBe(4);
+    expect(compiled.querySelectorAll('nav a').length).toBe(5); // 4 pages + Comptes (administrateur)
     expect(compiled.querySelector('.utilisateur')?.textContent).toContain('admin@orpex.local');
     expect(compiled.querySelector('.deconnexion')).not.toBeNull();
   });

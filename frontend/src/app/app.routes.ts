@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth-guard';
+import { adminGuard, authGuard } from './auth/auth-guard';
 
 export const routes: Routes = [
   {
@@ -31,6 +31,17 @@ export const routes: Routes = [
         path: 'journal',
         title: 'Journal – ORPEX',
         loadComponent: () => import('./pages/journal').then((m) => m.Journal),
+      },
+      {
+        path: 'mot-de-passe',
+        title: 'Changer mon mot de passe – ORPEX',
+        loadComponent: () => import('./pages/mot-de-passe').then((m) => m.MotDePasse),
+      },
+      {
+        path: 'admin/comptes',
+        title: 'Comptes – ORPEX',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./admin/comptes').then((m) => m.Comptes),
       },
     ],
   },

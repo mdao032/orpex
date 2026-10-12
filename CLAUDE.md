@@ -47,8 +47,15 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.
   Verrouillage temporaire après échecs (`orpex.login.*`, 5 échecs → 15 min) par `LoginAttemptListener` ; même 401
   pour mauvais mot de passe, compte inconnu ou verrouillé. Session : 30 min d'inactivité, `POST /logout`.
+  Administration (`AccountService`, `/api/admin/accounts`) : créer, désactiver/réactiver, changer le rôle, réinitialiser
+  le mot de passe ; un admin ne peut ni se désactiver ni se rétrograder. Mot de passe saisi par un tiers = provisoire
+  (`must_change_password`) : `AccountStatusFilter` bloque l'API (403 `PASSWORD_CHANGE_REQUIRED`) sauf `/api/me` et
+  `PUT /api/me/password`, et ferme la session d'un compte désactivé ou dont le rôle a changé. Mots de passe : 12 à 128
+  caractères (`orpex.password.*`). Erreurs de l'API : RFC 9457, message pour l'utilisateur dans `detail`.
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
-  cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion`, intercepteur de session expirée (401 sur `/api/`).
+  cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
+  `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
+  Messages d'erreur de l'API : `apiErrorMessage()` (`shared/api-error.ts`).
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.

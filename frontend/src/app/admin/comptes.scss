@@ -1,0 +1,111 @@
+.bloc {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--orpex-surface);
+  border: 1px solid var(--orpex-line);
+  border-radius: 6px;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.creation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-weight: 600;
+  }
+}
+
+input,
+select {
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+}
+
+button {
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  color: var(--orpex-accent);
+  background: var(--orpex-surface);
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+  cursor: pointer;
+
+  &[type='submit'] {
+    color: var(--orpex-accent-ink);
+    background: var(--orpex-accent);
+    border-color: var(--orpex-accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.aide {
+  margin: 0.75rem 0 0;
+  color: var(--orpex-ink-soft);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--orpex-surface);
+  border: 1px solid var(--orpex-line);
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--orpex-line);
+}
+
+th {
+  font-size: 0.85rem;
+  color: var(--orpex-ink-soft);
+}
+
+.inactif td {
+  color: var(--orpex-ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  form {
+    display: flex;
+    gap: 0.5rem;
+  }
+}
+
+.masque {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.erreur {
+  color: var(--orpex-danger);
+}
+
+.info {
+  color: var(--orpex-ink-soft);
+}

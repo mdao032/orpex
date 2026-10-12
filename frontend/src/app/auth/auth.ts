@@ -5,6 +5,8 @@ import { firstValueFrom } from 'rxjs';
 export interface User {
   email: string;
   roles: string[];
+  /** Mot de passe provisoire (choisi par un administrateur) : à remplacer avant tout autre usage. */
+  mustChangePassword: boolean;
 }
 
 /**
@@ -60,6 +62,11 @@ export class Auth {
       // La déconnexion efface aussi le jeton CSRF : refresh() en obtient un nouveau pour la prochaine connexion.
       await this.refresh();
     }
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await firstValueFrom(this.http.put('/api/me/password', { currentPassword, newPassword }));
+    await this.refresh();
   }
 
   /** La session a expiré côté serveur (401 sur une requête de l'API). */

@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Auth } from './auth';
 
-const ADMIN = { email: 'admin@orpex.local', roles: ['ROLE_ADMIN'] };
+const ADMIN = { email: 'admin@orpex.local', roles: ['ROLE_ADMIN'], mustChangePassword: false };
 
 /** Laisse s'exécuter les suites de promesses (requête suivante émise après un await). */
 const nextTick = () => new Promise((resolve) => setTimeout(resolve));
