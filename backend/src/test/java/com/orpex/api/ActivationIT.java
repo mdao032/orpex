@@ -152,6 +152,48 @@ class ActivationIT {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void closingCancelsTheSendsThatHaveNotStartedAndKeepsThePastOnes() throws Exception {
+        long owner = user("clore@test.local");
+        MockHttpSession session = login(mvc, "clore@test.local", PASSWORD);
+        long id = rule(owner, "CLO-1", WEEK, false, RuleStatus.ACTIVE);
+        send(mvc, post("/api/rules/" + id + "/activate").session(session), "");
+        long missedRule = rule(owner, "CLO-2", SchedulingRule.once(LocalDate.now(clock), false), false,
+                RuleStatus.ACTIVE, LocalTime.MIDNIGHT);
+        send(mvc, post("/api/rules/" + missedRule + "/activate").session(session), "");
+
+        send(mvc, post("/api/rules/" + id + "/close").session(session), "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cancelled").value(5));
+        send(mvc, post("/api/rules/" + missedRule + "/close").session(session), "")
+                .andExpect(jsonPath("$.cancelled").value(0));
+
+        assertThat(occurrences.findAllByRuleIdOrderByScheduledDateAsc(id))
+                .hasSize(5).extracting(Occurrence::getState).containsOnly(OccurrenceState.CANCELLED);
+        assertThat(occurrences.findAllByRuleIdOrderByScheduledDateAsc(missedRule))
+                .singleElement().extracting(Occurrence::getState).isEqualTo(OccurrenceState.MISSED);
+        assertThat(rules.findByIdAndOwnerId(id, owner).orElseThrow().getStatus()).isEqualTo(RuleStatus.CLOSED);
+    }
+
+    @Test
+    void aClosedFileCannotBeClosedAgainNorActivatedNorClosedByAnotherUser() throws Exception {
+        long owner = user("clos@test.local");
+        user("autre-clos@test.local");
+        MockHttpSession session = login(mvc, "clos@test.local", PASSWORD);
+        long id = rule(owner, "CLO-3", WEEK, false, RuleStatus.ACTIVE);
+
+        send(mvc, post("/api/rules/" + id + "/close").session(login(mvc, "autre-clos@test.local", PASSWORD)), "")
+                .andExpect(status().isNotFound());
+        send(mvc, post("/api/rules/" + id + "/close").session(session), "")
+                .andExpect(jsonPath("$.cancelled").value(0));
+        send(mvc, post("/api/rules/" + id + "/close").session(session), "")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Le dossier CLO-3 est déjà clos."));
+        send(mvc, post("/api/rules/" + id + "/activate").session(session), "")
+                .andExpect(status().isConflict());
+        assertThat(occurrences.countByRuleId(id)).isZero();
+    }
+
     private long rule(long owner, String id, SchedulingRule schedule, boolean validation, RuleStatus status) {
         return rule(owner, id, schedule, validation, status, LocalTime.of(9, 0));
     }

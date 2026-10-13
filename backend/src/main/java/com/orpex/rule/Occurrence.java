@@ -76,6 +76,12 @@ public class Occurrence {
         this.updatedAt = now;
     }
 
+    /** Envoi futur abandonné (dossier clos…) : il change d'état, il n'est jamais supprimé. */
+    public void cancel(Instant now) {
+        this.state = OccurrenceState.CANCELLED;
+        this.updatedAt = now;
+    }
+
     public Long getId() {
         return id;
     }

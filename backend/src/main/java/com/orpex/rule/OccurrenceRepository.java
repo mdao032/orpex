@@ -1,5 +1,6 @@
 package com.orpex.rule;
 
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.repository.Repository;
 
@@ -14,4 +15,6 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     List<Occurrence> findAllByRuleIdOrderByScheduledDateAsc(long ruleId);
 
     long countByRuleId(long ruleId);
+
+    List<Occurrence> findAllByRuleIdAndStateIn(long ruleId, Collection<OccurrenceState> states);
 }

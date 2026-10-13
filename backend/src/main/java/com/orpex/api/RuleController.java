@@ -8,6 +8,8 @@ import com.orpex.core.importing.RuleStatus;
 import com.orpex.rule.ActivationService;
 import com.orpex.rule.ActivationService.ActivationResult;
 import com.orpex.rule.ActivationService.Forecast;
+import com.orpex.rule.ClosureService;
+import com.orpex.rule.ClosureService.ClosureResult;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import java.time.Instant;
@@ -46,12 +48,21 @@ public class RuleController {
 
     private final RuleRepository rules;
     private final ActivationService activationService;
+    private final ClosureService closureService;
     private final CurrentUser currentUser;
 
-    public RuleController(RuleRepository rules, ActivationService activationService, CurrentUser currentUser) {
+    public RuleController(RuleRepository rules, ActivationService activationService, ClosureService closureService,
+            CurrentUser currentUser) {
         this.rules = rules;
         this.activationService = activationService;
+        this.closureService = closureService;
         this.currentUser = currentUser;
+    }
+
+    /** Dossier réglé : statut clos, envois futurs non partis annulés. */
+    @PostMapping("/{id}/close")
+    public ClosureResult close(@PathVariable long id, Authentication authentication) {
+        return closureService.close(currentUser.id(authentication), id);
     }
 
     /** Crée les envois de la relance ; avant, aucun envoi n'existe. */

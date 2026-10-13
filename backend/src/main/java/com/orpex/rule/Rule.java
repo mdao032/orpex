@@ -146,6 +146,12 @@ public class Rule {
         this.updatedAt = now;
     }
 
+    /** Dossier réglé : plus aucun envoi futur (spécification §6, « clore ce dossier »). */
+    public void close(Instant now) {
+        this.status = RuleStatus.CLOSED;
+        this.updatedAt = now;
+    }
+
     public void markActivated(Instant now) {
         this.activatedAt = now;
         this.updatedAt = now;
