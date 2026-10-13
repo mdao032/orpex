@@ -60,7 +60,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../rule/` : entités `Rule` (table `rules`), `Occurrence` (`occurrences`, un envoi = une ligne, un jour)
   et `ImportRecord` (`imports`). Activation **par bouton** (`ActivationService`, `POST /api/rules/{id}/activate`,
   `/activate-all`) : crée les envois (`PLANNED`, ou `AWAITING_VALIDATION` si validation quotidienne ; `MISSED` pour
-  l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation. Les dépôts n'exposent que des
+  l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation.
+  Clôture (`ClosureService`, `POST /api/rules/{id}/close`) : statut clos, envois non commencés (`NOT_STARTED`)
+  passés en `CANCELLED`, jamais supprimés ; pas de réouverture (non prévue par la spécification). Les dépôts n'exposent que des
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;

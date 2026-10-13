@@ -1,4 +1,4 @@
-import { frenchDate, scheduleLabel } from './schedule-label';
+import { daysRange, frenchDate, scheduleLabel } from './schedule-label';
 
 const base = {
   sendDate: null, dueDate: null, daysBefore: null, startDate: null, endDate: null,
@@ -8,6 +8,11 @@ const base = {
 describe('scheduleLabel', () => {
   it('formats ISO dates the French way', () => {
     expect(frenchDate('2027-03-01')).toBe('01/03/2027');
+  });
+
+  it('says "le" for a single day and "du … au …" for several', () => {
+    expect(daysRange('2026-10-26', '2026-10-26')).toBe('le 26/10/2026');
+    expect(daysRange('2027-06-07', '2027-06-11')).toBe('du 07/06/2027 au 11/06/2027');
   });
 
   it('describes each send mode in French', () => {

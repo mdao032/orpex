@@ -44,6 +44,13 @@ export class RulesApi {
     return firstValueFrom(this.http.post<ActivationResult>(`/api/rules/${id}/activate`, null));
   }
 
+  /** Dossier réglé : statut clos, envois futurs non partis annulés. */
+  close(id: number): Promise<{ ruleId: number; businessId: string; cancelled: number }> {
+    return firstValueFrom(
+      this.http.post<{ ruleId: number; businessId: string; cancelled: number }>(`/api/rules/${id}/close`, null),
+    );
+  }
+
   /** Active toutes les relances non encore activées et non closes. */
   activateAll(): Promise<ActivationResult[]> {
     return firstValueFrom(this.http.post<ActivationResult[]>('/api/rules/activate-all', null));

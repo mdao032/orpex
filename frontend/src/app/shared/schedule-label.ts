@@ -19,6 +19,11 @@ export function frenchDate(iso: string | null): string {
   return `${day}/${month}/${year}`;
 }
 
+/** Jours d'une série d'envois : « le 26/10/2026 » pour un seul jour, sinon « du 07/06/2027 au 11/06/2027 ». */
+export function daysRange(first: string | null, last: string | null): string {
+  return first === last ? `le ${frenchDate(first)}` : `du ${frenchDate(first)} au ${frenchDate(last)}`;
+}
+
 /** Description en français : « Chaque jour du 01/03/2027 au 05/03/2027 à 09:00, jours ouvrés uniquement ». */
 export function scheduleLabel(s: Schedule): string {
   const time = s.sendTime.slice(0, 5);

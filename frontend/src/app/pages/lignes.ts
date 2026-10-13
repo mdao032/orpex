@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ActivationResult, RuleView, RulesApi } from '../imports/rules-api';
 import { apiErrorMessage } from '../shared/api-error';
-import { frenchDate, scheduleLabel } from '../shared/schedule-label';
+import { daysRange, scheduleLabel } from '../shared/schedule-label';
 
 @Component({
   selector: 'app-lignes',
@@ -66,6 +66,9 @@ import { frenchDate, scheduleLabel } from '../shared/schedule-label';
                 @if (!r.activatedAt && r.status === 'ACTIVE') {
                   <button type="button" (click)="activer(r)" [disabled]="enCours()">Activer</button>
                 }
+                @if (r.status === 'ACTIVE') {
+                  <button type="button" (click)="clore(r)" [disabled]="enCours()">Clore ce dossier</button>
+                }
               </td>
             </tr>
           }
@@ -101,7 +104,7 @@ export class Lignes implements OnInit {
     if (f.planned === 0) {
       return "À l'activation : aucun envoi à venir.";
     }
-    return `À l'activation : ${f.planned} envoi(s) prévu(s) du ${frenchDate(f.first)} au ${frenchDate(f.last)}`
+    return `À l'activation : ${f.planned} envoi(s) prévu(s) ${daysRange(f.first, f.last)}`
       + (f.missedToday > 0 ? " (celui d'aujourd'hui est déjà passé)." : '.');
   }
 
@@ -117,6 +120,17 @@ export class Lignes implements OnInit {
 
   protected async activer(r: RuleView): Promise<void> {
     await this.executer(async () => resume(await this.api.activate(r.id)));
+  }
+
+  protected async clore(r: RuleView): Promise<void> {
+    const question = `Clore le dossier ${r.businessId} ? Ses envois à venir seront annulés ; cette action est définitive.`;
+    if (!confirm(question)) {
+      return;
+    }
+    await this.executer(async () => {
+      const { cancelled } = await this.api.close(r.id);
+      return `Dossier ${r.businessId} clos : ${cancelled} envoi(s) à venir annulé(s).`;
+    });
   }
 
   protected async activerTout(): Promise<void> {
@@ -143,6 +157,6 @@ export class Lignes implements OnInit {
 function resume(r: ActivationResult): string {
   const envois = r.planned === 0
     ? 'aucun envoi à venir'
-    : `${r.planned} envoi(s) du ${frenchDate(r.first)} au ${frenchDate(r.last)}`;
+    : `${r.planned} envoi(s) ${daysRange(r.first, r.last)}`;
   return `${r.businessId} activée : ${envois}` + (r.missed > 0 ? ' (envoi du jour manqué : heure passée).' : '.');
 }

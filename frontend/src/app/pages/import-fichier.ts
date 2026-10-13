@@ -3,7 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi } from '../imports/imports-api';
 import { apiErrorMessage } from '../shared/api-error';
-import { frenchDate, scheduleLabel } from '../shared/schedule-label';
+import { daysRange, scheduleLabel } from '../shared/schedule-label';
 
 const ACTIONS: Record<ImportAction, string> = {
   CREATE: 'À créer',
@@ -106,7 +106,7 @@ const ACTIONS: Record<ImportAction, string> = {
                     @if (ligne.sends; as e) {
                       @if (e.planned > 0) {
                         {{ e.planned }} envoi(s)<br />
-                        <span class="detail">du {{ date(e.first) }} au {{ date(e.last) }}</span>
+                        <span class="detail">{{ jours(e.first, e.last) }}</span>
                       } @else {
                         —
                       }
@@ -157,7 +157,7 @@ export class ImportFichier implements OnInit {
   protected readonly enCours = signal(false);
 
   protected readonly calendrier = scheduleLabel;
-  protected readonly date = frenchDate;
+  protected readonly jours = daysRange;
 
   async ngOnInit(): Promise<void> {
     await this.rechargerHistorique();
