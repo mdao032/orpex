@@ -30,7 +30,7 @@ L'humain rédige les messages ; la machine ne fait que planifier et expédier. L
 ## Commandes
 
 ```powershell
-mvn -f backend clean verify              # 25 tests unitaires + tests d'intégration *IT (Docker requis)
+mvn -f backend clean verify              # tests unitaires + tests d'intégration *IT (Docker requis)
 cd frontend; npm install; npx ng test --watch=false; npm start
 .\scripts\dev.ps1                        # base + Mailpit (Docker) puis API, profil dev
 .\scripts\build.ps1                      # front copié dans le JAR, puis mvn verify
@@ -57,13 +57,16 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `BusinessCalendar` du cœur métier, à relire à chaque calcul d'envois. Administration : `/api/admin/holidays`.
   Jours fériés d'un pays (`core/calendar/NationalHolidays` : France, Mali) : seuls les jours calculables sont ajoutés ;
   les fêtes à date annoncée (fêtes musulmanes au Mali) sont listées pour une saisie à la main.
-- `backend/.../rule/` : entités `Rule` (table `rules`) et `ImportRecord` (`imports`). Les dépôts n'exposent que des
+- `backend/.../rule/` : entités `Rule` (table `rules`), `Occurrence` (`occurrences`, un envoi = une ligne, un jour)
+  et `ImportRecord` (`imports`). Activation **par bouton** (`ActivationService`, `POST /api/rules/{id}/activate`,
+  `/activate-all`) : crée les envois (`PLANNED`, ou `AWAITING_VALIDATION` si validation quotidienne ; `MISSED` pour
+  l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation. Les dépôts n'exposent que des
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
   la confirmation (`POST /api/imports`, même fichier, même analyse) crée les nouvelles lignes en une transaction et
   enregistre l'import ; une ligne existante modifiée est comptée « non appliquée » (mise à jour : phase 7).
-  Les lignes créées ne génèrent pas encore d'envois (activation : phase 4).
+  Les lignes créées n'ont aucun envoi tant qu'elles ne sont pas activées.
   Modèle à télécharger : `GET /api/imports/template` (`core/importing/ImportTemplate`, exemples en `@example.org`).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
@@ -101,14 +104,13 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- `mvn clean verify` passe : compilation complète, 25 tests du cœur métier (vrai JUnit).
-- L'API démarre en profil `dev` : Flyway applique `V1__init.sql` sur PostgreSQL 17, `/actuator/health` = `UP`,
-  connexion de l'administrateur de démarrage et `/api/me` fonctionnent. Le front s'affiche.
+- Phases 0 à 3 terminées (fondations, comptes et sécurité, jours fériés, import Excel) ; phase 4 en cours.
+  Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
 - CSRF actif sur toutes les requêtes qui modifient, `POST /login` compris. Dans les tests MockMvc, utiliser
   `CsrfSupport.realCsrf(mvc)`, **jamais** `csrf()` de spring-security-test (il casse le cookie pour tout le contexte partagé).
-- Entité JPA : `UserAccount` (validée contre le schéma par `ddl-auto=validate`).
+- Les entités JPA sont validées contre le schéma au démarrage (`ddl-auto=validate`).
 
 ## Écarts connus avec la spécification
 

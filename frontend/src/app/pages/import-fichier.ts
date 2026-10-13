@@ -40,7 +40,10 @@ const ACTIONS: Record<ImportAction, string> = {
           {{ r.created }} relance(s) créée(s), {{ r.unchanged }} inchangée(s), {{ r.rejected }} ligne(s) rejetée(s)@if (r.notApplied > 0) {,
             {{ r.notApplied }} modification(s) non appliquée(s)}.
         </p>
-        <p><a routerLink="/lignes">Voir mes relances</a></p>
+        <p>
+          Les relances créées n'envoient rien tant qu'elles ne sont pas activées :
+          <a routerLink="/lignes">voir et activer mes relances</a>.
+        </p>
       </section>
     }
 
