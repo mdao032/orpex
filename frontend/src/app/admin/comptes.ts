@@ -8,7 +8,7 @@ import { Account, AccountsApi, Role } from './accounts-api';
 @Component({
   selector: 'app-comptes',
   imports: [ReactiveFormsModule, DatePipe],
-  styleUrl: './comptes.scss',
+  styleUrl: '../shared/page.scss',
   template: `
     <h1>Comptes</h1>
 

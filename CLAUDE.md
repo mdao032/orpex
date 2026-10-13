@@ -69,6 +69,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
   Messages d'erreur de l'API : `apiErrorMessage()` (`shared/api-error.ts`).
+  Pages : `pages/import-fichier` (modèle, aperçu, confirmation, historique), `pages/lignes` (relances) ; styles
+  communs dans `shared/page.scss`, calendrier en français par `shared/schedule-label.ts`.
   Pages admin dans `admin/` (comptes, jours fériés). Locale `fr` active (dates en français via `DatePipe`).
 - Heure : bean `Clock` dans le fuseau `orpex.timezone` (défaut `Africa/Bamako`, invalide = démarrage refusé). Calculer
   « aujourd'hui » et les heures d'envoi avec ce `Clock`, jamais avec le fuseau du serveur.

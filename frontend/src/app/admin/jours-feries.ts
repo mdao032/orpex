@@ -7,7 +7,7 @@ import { Country, Holiday, HolidaysApi } from './holidays-api';
 @Component({
   selector: 'app-jours-feries',
   imports: [ReactiveFormsModule, DatePipe],
-  styleUrl: './comptes.scss',
+  styleUrl: '../shared/page.scss',
   template: `
     <h1>Jours fériés</h1>
 
