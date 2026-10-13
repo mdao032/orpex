@@ -21,4 +21,7 @@ public interface RuleRepository extends Repository<Rule, Long> {
     List<Rule> findAllByOwnerIdAndBusinessIdIn(long ownerId, Iterable<String> businessIds);
 
     long countByOwnerId(long ownerId);
+
+    /** Envoie les écritures en attente à la base (pour détecter une violation d'unicité dans la transaction). */
+    void flush();
 }

@@ -61,7 +61,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
-  la confirmation renverra le même fichier (aucun état conservé entre aperçu et confirmation).
+  la confirmation (`POST /api/imports`, même fichier, même analyse) crée les nouvelles lignes en une transaction et
+  enregistre l'import ; une ligne existante modifiée est comptée « non appliquée » (mise à jour : phase 7).
+  Les lignes créées ne génèrent pas encore d'envois (activation : phase 4).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).
