@@ -69,6 +69,13 @@ class ImportApplyIT {
 
         assertThat(rules.findAllByOwnerIdOrderByBusinessIdAsc(owner))
                 .extracting(r -> r.getBusinessId()).containsExactly("A-1", "A-2");
+        mvc.perform(get("/api/rules").session(session))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].businessId").value("A-1"))
+                .andExpect(jsonPath("$[0].sendMode").value("PERIODE"))
+                .andExpect(jsonPath("$[0].startDate").value("2027-05-03"));
+        mvc.perform(get("/api/rules").session(login(mvc, user2(), PASSWORD)))
+                .andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get("/api/imports").session(session))
                 .andExpect(jsonPath("$[0].fileName").value("mai.xlsx"))
                 .andExpect(jsonPath("$[0].created").value(2))
@@ -131,6 +138,12 @@ class ImportApplyIT {
 
         assertThat(rules.countByOwnerId(owner)).isZero();
         mvc.perform(get("/api/imports").session(session)).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    /** Un autre utilisateur, qui ne doit voir aucune des lignes ci-dessus. */
+    private String user2() {
+        user("spectateur@test.local");
+        return "spectateur@test.local";
     }
 
     private long user(String email) {
