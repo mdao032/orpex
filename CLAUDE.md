@@ -64,6 +64,7 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   la confirmation (`POST /api/imports`, même fichier, même analyse) crée les nouvelles lignes en une transaction et
   enregistre l'import ; une ligne existante modifiée est comptée « non appliquée » (mise à jour : phase 7).
   Les lignes créées ne génèrent pas encore d'envois (activation : phase 4).
+  Modèle à télécharger : `GET /api/imports/template` (`core/importing/ImportTemplate`, exemples en `@example.org`).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
   cookie CSRF), `authGuard` sur toutes les pages sauf `/connexion` (et redirection vers `/mot-de-passe` si provisoire),
   `adminGuard` pour `/admin/**`, intercepteur (401 → connexion, 403 `PASSWORD_CHANGE_REQUIRED` → mot de passe).

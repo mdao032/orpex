@@ -7,7 +7,9 @@ import static com.orpex.XlsxFiles.periodRow;
 import static com.orpex.XlsxFiles.xlsx;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -128,6 +130,18 @@ class ImportPreviewIT {
         preview("id;email\n1;a@b.c".getBytes())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Le fichier n'est pas un classeur Excel .xlsx lisible."));
+    }
+
+    @Test
+    void theDownloadedTemplateIsAcceptedByThePreview() throws Exception {
+        byte[] template = mvc.perform(get("/api/imports/template").session(session))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("modele-relances-orpex.xlsx")))
+                .andReturn().getResponse().getContentAsByteArray();
+
+        preview(template)
+                .andExpect(jsonPath("$.counts.toCreate").value(3))
+                .andExpect(jsonPath("$.counts.rejected").value(0));
     }
 
     private void existing(String businessId, String hash) {

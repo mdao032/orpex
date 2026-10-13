@@ -1,6 +1,7 @@
 package com.orpex.api;
 
 import com.orpex.account.CurrentUser;
+import com.orpex.core.importing.ImportTemplate;
 import com.orpex.importing.ImportApplyService;
 import com.orpex.importing.ImportApplyService.ImportResult;
 import com.orpex.importing.ImportPreviewService;
@@ -9,10 +10,15 @@ import com.orpex.rule.ImportRecord;
 import com.orpex.rule.ImportRecordRepository;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,13 +48,26 @@ public class ImportController {
     private final ImportApplyService applyService;
     private final ImportRecordRepository imports;
     private final CurrentUser currentUser;
+    private final Clock clock;
 
     public ImportController(ImportPreviewService previewService, ImportApplyService applyService,
-            ImportRecordRepository imports, CurrentUser currentUser) {
+            ImportRecordRepository imports, CurrentUser currentUser, Clock clock) {
         this.previewService = previewService;
         this.applyService = applyService;
         this.imports = imports;
         this.currentUser = currentUser;
+        this.clock = clock;
+    }
+
+    /** Modèle .xlsx à remplir : listes déroulantes, feuille d'instructions, lignes d'exemple aux dates futures. */
+    @GetMapping("/template")
+    public ResponseEntity<byte[]> template() {
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename("modele-relances-orpex.xlsx").build().toString())
+                .body(ImportTemplate.create(LocalDate.now(clock)));
     }
 
     /** Historique des imports de l'utilisateur, du plus récent au plus ancien. */
