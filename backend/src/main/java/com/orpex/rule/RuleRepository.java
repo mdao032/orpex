@@ -2,6 +2,8 @@ package com.orpex.rule;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.Repository;
 
 /**
@@ -13,6 +15,12 @@ public interface RuleRepository extends Repository<Rule, Long> {
     Rule save(Rule rule);
 
     Optional<Rule> findByIdAndOwnerId(long id, long ownerId);
+
+    /** Même lecture, avec verrou de ligne : deux activations simultanées de la même ligne s'attendent. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Rule> findForUpdateByIdAndOwnerId(long id, long ownerId);
+
+    List<Rule> findAllByOwnerIdAndActivatedAtIsNullOrderByBusinessIdAsc(long ownerId);
 
     Optional<Rule> findByOwnerIdAndBusinessId(long ownerId, String businessId);
 

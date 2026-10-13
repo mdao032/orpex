@@ -104,6 +104,10 @@ public class Rule {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** Activation par l'utilisateur (bouton) : avant, aucun envoi n'existe pour cette ligne. */
+    @Column(name = "activated_at")
+    private Instant activatedAt;
+
     protected Rule() {
         // JPA
     }
@@ -139,6 +143,11 @@ public class Rule {
         this.dailyValidation = imported.dailyValidation();
         this.status = imported.status();
         this.configHash = configHash;
+        this.updatedAt = now;
+    }
+
+    public void markActivated(Instant now) {
+        this.activatedAt = now;
         this.updatedAt = now;
     }
 
@@ -213,5 +222,13 @@ public class Rule {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Instant getActivatedAt() {
+        return activatedAt;
+    }
+
+    public boolean isActivated() {
+        return activatedAt != null;
     }
 }

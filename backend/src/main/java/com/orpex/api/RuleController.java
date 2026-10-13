@@ -4,6 +4,8 @@ import com.orpex.account.CurrentUser;
 import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.RuleStatus;
+import com.orpex.rule.ActivationService;
+import com.orpex.rule.ActivationService.ActivationResult;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import java.time.Instant;
@@ -13,6 +15,8 @@ import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,23 +29,38 @@ public class RuleController {
                            String caseReference, String subject, SendMode sendMode, LocalDate sendDate,
                            LocalDate dueDate, Integer daysBefore, LocalDate startDate, LocalDate endDate,
                            LocalTime sendTime, boolean businessDaysOnly, boolean dailyValidation, RuleStatus status,
-                           boolean paused, Instant updatedAt) {
+                           boolean paused, Instant activatedAt, Instant updatedAt) {
 
         static RuleView of(Rule rule) {
             SchedulingRule s = rule.scheduling();
             return new RuleView(rule.getId(), rule.getBusinessId(), rule.getRecipientEmail(), rule.getFirstName(),
                     rule.getLastName(), rule.getCaseReference(), rule.getSubject(), s.mode(), s.sendDate(),
                     s.dueDate(), s.daysBefore(), s.startDate(), s.endDate(), rule.getSendTime(), s.businessDaysOnly(),
-                    rule.isDailyValidation(), rule.getStatus(), rule.isPaused(), rule.getUpdatedAt());
+                    rule.isDailyValidation(), rule.getStatus(), rule.isPaused(), rule.getActivatedAt(),
+                    rule.getUpdatedAt());
         }
     }
 
     private final RuleRepository rules;
+    private final ActivationService activationService;
     private final CurrentUser currentUser;
 
-    public RuleController(RuleRepository rules, CurrentUser currentUser) {
+    public RuleController(RuleRepository rules, ActivationService activationService, CurrentUser currentUser) {
         this.rules = rules;
+        this.activationService = activationService;
         this.currentUser = currentUser;
+    }
+
+    /** Crée les envois de la relance ; avant, aucun envoi n'existe. */
+    @PostMapping("/{id}/activate")
+    public ActivationResult activate(@PathVariable long id, Authentication authentication) {
+        return activationService.activate(currentUser.id(authentication), id);
+    }
+
+    /** Active toutes les relances non encore activées et non closes. */
+    @PostMapping("/activate-all")
+    public List<ActivationResult> activateAll(Authentication authentication) {
+        return activationService.activateAll(currentUser.id(authentication));
     }
 
     @GetMapping

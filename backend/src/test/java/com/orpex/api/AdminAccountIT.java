@@ -75,7 +75,7 @@ class AdminAccountIT {
 
         MockHttpSession user = login("nouveau@test.local", TEMPORARY);
         mvc.perform(get("/api/me").session(user)).andExpect(jsonPath("$.mustChangePassword").value(true));
-        mvc.perform(get("/api/rules").session(user))
+        mvc.perform(get("/api/adresse-inexistante").session(user))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));
 
@@ -88,7 +88,7 @@ class AdminAccountIT {
         changeOwnPassword(user, TEMPORARY, "nouveau-mot-de-passe").andExpect(status().isNoContent());
 
         mvc.perform(get("/api/me").session(user)).andExpect(jsonPath("$.mustChangePassword").value(false));
-        mvc.perform(get("/api/rules").session(user)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/adresse-inexistante").session(user)).andExpect(status().isNotFound());
     }
 
     @Test
@@ -161,7 +161,7 @@ class AdminAccountIT {
 
         attemptLogin("oublieux@test.local", PASSWORD).andExpect(status().isUnauthorized());
         MockHttpSession user = login("oublieux@test.local", TEMPORARY);
-        mvc.perform(get("/api/rules").session(user)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/adresse-inexistante").session(user)).andExpect(status().isForbidden());
     }
 
     private long user(String email) {
