@@ -26,6 +26,13 @@ public class ActivationService {
                                    LocalDate last) {
     }
 
+    /**
+     * Ce que l'activation créerait maintenant : {@code planned} envois à venir du {@code first} au {@code last}, et
+     * {@code missedToday} envoi du jour déjà manqué (heure passée).
+     */
+    public record Forecast(int planned, LocalDate first, LocalDate last, int missedToday) {
+    }
+
     private final RuleRepository rules;
     private final OccurrenceRepository occurrences;
     private final HolidayService holidayService;
@@ -51,13 +58,13 @@ public class ActivationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "La relance " + rule.getBusinessId() + " est close : elle n'a rien à envoyer.");
         }
-        return createSends(rule, new ScheduleCalculator(holidayService.businessCalendar()), clock.instant());
+        return createSends(rule, calculator(), clock.instant());
     }
 
     /** Active toutes les lignes non encore activées et non closes de l'utilisateur. */
     @Transactional
     public List<ActivationResult> activateAll(long ownerId) {
-        ScheduleCalculator calculator = new ScheduleCalculator(holidayService.businessCalendar());
+        ScheduleCalculator calculator = calculator();
         Instant now = clock.instant();
         List<ActivationResult> results = new ArrayList<>();
         for (Rule candidate : rules.findAllByOwnerIdAndActivatedAtIsNullOrderByBusinessIdAsc(ownerId)) {
@@ -69,9 +76,26 @@ public class ActivationService {
         return results;
     }
 
+    /** Calculateur à jour des jours fériés, à réutiliser pour plusieurs lignes d'une même requête. */
+    public ScheduleCalculator calculator() {
+        return new ScheduleCalculator(holidayService.businessCalendar());
+    }
+
+    /** Envois qu'une activation créerait maintenant ; même calcul que l'activation elle-même. */
+    public Forecast forecast(Rule rule, ScheduleCalculator calculator) {
+        ActivationPlanner.Split split = split(rule, calculator, clock.instant());
+        List<LocalDate> planned = split.planned();
+        return new Forecast(planned.size(), planned.isEmpty() ? null : planned.getFirst(),
+                planned.isEmpty() ? null : planned.getLast(), split.missed().size());
+    }
+
+    private ActivationPlanner.Split split(Rule rule, ScheduleCalculator calculator, Instant now) {
+        return ActivationPlanner.split(calculator.sendDates(rule.scheduling()), rule.getSendTime(), clock.getZone(),
+                now);
+    }
+
     private ActivationResult createSends(Rule rule, ScheduleCalculator calculator, Instant now) {
-        ActivationPlanner.Split split = ActivationPlanner.split(calculator.sendDates(rule.scheduling()),
-                rule.getSendTime(), clock.getZone(), now);
+        ActivationPlanner.Split split = split(rule, calculator, now);
         OccurrenceState upcoming = rule.isDailyValidation()
                 ? OccurrenceState.AWAITING_VALIDATION : OccurrenceState.PLANNED;
         for (LocalDate day : split.planned()) {

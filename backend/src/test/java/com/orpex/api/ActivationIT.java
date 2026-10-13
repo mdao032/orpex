@@ -3,6 +3,7 @@ package com.orpex.api;
 import static com.orpex.MockMvcSupport.login;
 import static com.orpex.MockMvcSupport.send;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,6 +69,10 @@ class ActivationIT {
         long owner = user("active@test.local");
         MockHttpSession session = login(mvc, "active@test.local", PASSWORD);
         long id = rule(owner, "ACT-1", WEEK, false, RuleStatus.ACTIVE);
+        mvc.perform(get("/api/rules").session(session))
+                .andExpect(jsonPath("$[0].forecast.planned").value(5))
+                .andExpect(jsonPath("$[0].forecast.first").value("2027-06-07"))
+                .andExpect(jsonPath("$[0].forecast.last").value("2027-06-11"));
 
         send(mvc, post("/api/rules/" + id + "/activate").session(session), "")
                 .andExpect(status().isOk())
@@ -82,6 +87,8 @@ class ActivationIT {
                 .isEqualTo(Instant.parse("2027-06-07T09:00:00Z"));
         assertThat(sends.getFirst().getCreatedBy()).isEqualTo(owner);
         assertThat(rules.findByIdAndOwnerId(id, owner).orElseThrow().isActivated()).isTrue();
+        mvc.perform(get("/api/rules").session(session))
+                .andExpect(jsonPath("$[0].forecast").doesNotExist());
     }
 
     @Test

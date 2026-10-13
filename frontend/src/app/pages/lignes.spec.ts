@@ -35,13 +35,14 @@ describe('Lignes', () => {
       caseReference: 'FAC-1', subject: 'Relance facture', sendMode: 'PERIODE', sendDate: null, dueDate: null,
       daysBefore: null, startDate: '2027-03-01', endDate: '2027-03-05', sendTime: '09:00:00',
       businessDaysOnly: true, dailyValidation: true, status: 'ACTIVE', paused: false, activatedAt: null,
-      updatedAt: '2026-10-13T10:00:00Z',
+      updatedAt: '2026-10-13T10:00:00Z', forecast: { planned: 5, first: '2027-03-01', last: '2027-03-05', missedToday: 0 },
     }]);
 
     const row = page.querySelector('tbody tr');
     expect(row?.textContent).toContain('P-1');
     expect(row?.textContent).toContain('Chaque jour du 01/03/2027 au 05/03/2027');
     expect(row?.textContent).toContain('quotidienne');
+    expect(row?.textContent).toContain("À l'activation : 5 envoi(s) prévu(s) du 01/03/2027 au 05/03/2027.");
   });
 
   it('activates a rule and reports its sends', async () => {
@@ -53,6 +54,7 @@ describe('Lignes', () => {
       subject: 'Relance', sendMode: 'PERIODE', sendDate: null, dueDate: null, daysBefore: null,
       startDate: '2027-06-07', endDate: '2027-06-11', sendTime: '09:00:00', businessDaysOnly: true,
       dailyValidation: false, status: 'ACTIVE', paused: false, activatedAt: null, updatedAt: '2026-10-13T10:00:00Z',
+      forecast: { planned: 5, first: '2027-06-07', last: '2027-06-11', missedToday: 0 },
     };
     http.expectOne('/api/rules').flush([rule]);
     await nextTick();
@@ -65,7 +67,7 @@ describe('Lignes', () => {
       ruleId: 7, businessId: 'P-7', planned: 5, missed: 0, first: '2027-06-07', last: '2027-06-11',
     });
     await nextTick();
-    http.expectOne('/api/rules').flush([{ ...rule, activatedAt: '2026-10-13T11:00:00Z' }]);
+    http.expectOne('/api/rules').flush([{ ...rule, activatedAt: '2026-10-13T11:00:00Z', forecast: null }]);
     await nextTick();
     await fixture.whenStable();
 

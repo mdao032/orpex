@@ -54,7 +54,12 @@ import { frenchDate, scheduleLabel } from '../shared/schedule-label';
                 @if (r.caseReference) { <div class="detail">{{ r.caseReference }}</div> }
               </td>
               <td>{{ r.subject }}</td>
-              <td class="detail">{{ calendrier(r) }}</td>
+              <td class="detail">
+                {{ calendrier(r) }}
+                @if (r.forecast; as f) {
+                  <div class="prevision">{{ prevision(f) }}</div>
+                }
+              </td>
               <td>{{ r.dailyValidation ? 'quotidienne' : 'non' }}</td>
               <td>{{ statut(r) }}</td>
               <td class="actions">
@@ -90,6 +95,14 @@ export class Lignes implements OnInit {
     } finally {
       this.charge.set(true);
     }
+  }
+
+  protected prevision(f: NonNullable<RuleView['forecast']>): string {
+    if (f.planned === 0) {
+      return "À l'activation : aucun envoi à venir.";
+    }
+    return `À l'activation : ${f.planned} envoi(s) prévu(s) du ${frenchDate(f.first)} au ${frenchDate(f.last)}`
+      + (f.missedToday > 0 ? " (celui d'aujourd'hui est déjà passé)." : '.');
   }
 
   protected statut(r: RuleView): string {

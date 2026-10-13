@@ -17,6 +17,8 @@ export interface RuleView extends Schedule {
   /** Null tant que la relance n'est pas activée : aucun envoi n'existe alors. */
   activatedAt: string | null;
   updatedAt: string;
+  /** Envois que l'activation créerait maintenant ; seulement pour une relance non activée et non close. */
+  forecast: { planned: number; first: string | null; last: string | null; missedToday: number } | null;
 }
 
 export interface ActivationResult {

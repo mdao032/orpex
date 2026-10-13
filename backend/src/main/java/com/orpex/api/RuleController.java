@@ -1,11 +1,13 @@
 package com.orpex.api;
 
 import com.orpex.account.CurrentUser;
+import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.RuleStatus;
 import com.orpex.rule.ActivationService;
 import com.orpex.rule.ActivationService.ActivationResult;
+import com.orpex.rule.ActivationService.Forecast;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import java.time.Instant;
@@ -29,15 +31,16 @@ public class RuleController {
                            String caseReference, String subject, SendMode sendMode, LocalDate sendDate,
                            LocalDate dueDate, Integer daysBefore, LocalDate startDate, LocalDate endDate,
                            LocalTime sendTime, boolean businessDaysOnly, boolean dailyValidation, RuleStatus status,
-                           boolean paused, Instant activatedAt, Instant updatedAt) {
+                           boolean paused, Instant activatedAt, Instant updatedAt, Forecast forecast) {
 
-        static RuleView of(Rule rule) {
+        /** {@code forecast} : envois que l'activation créerait, seulement pour une relance non activée et non close. */
+        static RuleView of(Rule rule, Forecast forecast) {
             SchedulingRule s = rule.scheduling();
             return new RuleView(rule.getId(), rule.getBusinessId(), rule.getRecipientEmail(), rule.getFirstName(),
                     rule.getLastName(), rule.getCaseReference(), rule.getSubject(), s.mode(), s.sendDate(),
                     s.dueDate(), s.daysBefore(), s.startDate(), s.endDate(), rule.getSendTime(), s.businessDaysOnly(),
                     rule.isDailyValidation(), rule.getStatus(), rule.isPaused(), rule.getActivatedAt(),
-                    rule.getUpdatedAt());
+                    rule.getUpdatedAt(), forecast);
         }
     }
 
@@ -66,7 +69,10 @@ public class RuleController {
     @GetMapping
     @Transactional(readOnly = true)
     public List<RuleView> list(Authentication authentication) {
+        ScheduleCalculator calculator = activationService.calculator();
         return rules.findAllByOwnerIdOrderByBusinessIdAsc(currentUser.id(authentication)).stream()
-                .map(RuleView::of).toList();
+                .map(rule -> RuleView.of(rule, rule.isActivated() || rule.getStatus() != RuleStatus.ACTIVE
+                        ? null : activationService.forecast(rule, calculator)))
+                .toList();
     }
 }
