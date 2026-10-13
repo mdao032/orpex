@@ -146,6 +146,12 @@ public class Rule {
         this.updatedAt = now;
     }
 
+    /** Pause de la ligne : ses envois ne partent pas tant qu'elle n'est pas reprise. */
+    public void pause(boolean paused, Instant now) {
+        this.paused = paused;
+        this.updatedAt = now;
+    }
+
     /** Dossier réglé : plus aucun envoi futur (spécification §6, « clore ce dossier »). */
     public void close(Instant now) {
         this.status = RuleStatus.CLOSED;

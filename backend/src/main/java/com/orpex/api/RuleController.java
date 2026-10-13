@@ -12,6 +12,8 @@ import com.orpex.rule.ClosureService;
 import com.orpex.rule.ClosureService.ClosureResult;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
+import com.orpex.rule.SendingControlService;
+import com.orpex.rule.SendingControlService.RulePauseResult;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -49,14 +51,28 @@ public class RuleController {
     private final RuleRepository rules;
     private final ActivationService activationService;
     private final ClosureService closureService;
+    private final SendingControlService sendingControl;
     private final CurrentUser currentUser;
 
     public RuleController(RuleRepository rules, ActivationService activationService, ClosureService closureService,
-            CurrentUser currentUser) {
+            SendingControlService sendingControl, CurrentUser currentUser) {
         this.rules = rules;
         this.activationService = activationService;
         this.closureService = closureService;
+        this.sendingControl = sendingControl;
         this.currentUser = currentUser;
+    }
+
+    /** Suspend les envois de la relance, sans les supprimer. */
+    @PostMapping("/{id}/pause")
+    public RulePauseResult pause(@PathVariable long id, Authentication authentication) {
+        return sendingControl.setRulePause(currentUser.id(authentication), id, true);
+    }
+
+    /** Reprise : les envois dont l'heure est passée pendant la pause deviennent manqués. */
+    @PostMapping("/{id}/resume")
+    public RulePauseResult resume(@PathVariable long id, Authentication authentication) {
+        return sendingControl.setRulePause(currentUser.id(authentication), id, false);
     }
 
     /** Dossier réglé : statut clos, envois futurs non partis annulés. */
