@@ -119,6 +119,14 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
                       Nouvelle tentative prévue le {{ e.nextAttemptAt | date: 'dd/MM/yyyy à HH:mm' }}.
                     }
                     @if (e.lastError) { <span class="erreur">{{ e.lastError }}</span> }
+                    @if (e.state === 'TO_CHECK') {
+                      <div class="actions verification">
+                        <button type="button" (click)="trancher(e.id, true)" [disabled]="enCours()">Il est parti</button>
+                        <button type="button" (click)="trancher(e.id, false)" [disabled]="enCours()">
+                          Il n'est pas parti
+                        </button>
+                      </div>
+                    }
                   </td>
                 </tr>
               }
@@ -174,6 +182,20 @@ export class Relance implements OnInit {
   protected async basculerPause(): Promise<void> {
     const rule = this.detail()!.rule;
     await this.executer(async () => pauseMessage(rule.businessId, await this.api.setPaused(this.id, !rule.paused)));
+  }
+
+  /** Après vérification (messagerie, destinataire) : l'envoi est-il parti ? Il ne sera jamais renvoyé. */
+  protected async trancher(sendId: number, parti: boolean): Promise<void> {
+    const question = parti
+      ? 'Confirmez-vous que ce mail est bien parti ?'
+      : "Confirmez-vous que ce mail n'est pas parti ? Il ne sera pas renvoyé automatiquement.";
+    if (!confirm(question)) {
+      return;
+    }
+    await this.executer(async () => {
+      await this.api.resolveToCheck(this.id, sendId, parti);
+      return parti ? 'Envoi marqué « Envoyé ».' : 'Envoi marqué « Échec » (non parti).';
+    });
   }
 
   protected async clore(): Promise<void> {

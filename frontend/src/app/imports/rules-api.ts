@@ -65,6 +65,13 @@ export class RulesApi {
     return firstValueFrom(this.http.get<RuleDetail>(`/api/rules/${id}`));
   }
 
+  /** Envoi « à vérifier » (arrêt pendant l'envoi) : l'utilisateur déclare s'il est parti. Jamais renvoyé. */
+  resolveToCheck(ruleId: number, sendId: number, sent: boolean): Promise<OccurrenceView> {
+    return firstValueFrom(
+      this.http.post<OccurrenceView>(`/api/rules/${ruleId}/sends/${sendId}/resolve`, { sent }),
+    );
+  }
+
   /** Crée les envois de la relance. */
   activate(id: number): Promise<ActivationResult> {
     return firstValueFrom(this.http.post<ActivationResult>(`/api/rules/${id}/activate`, null));

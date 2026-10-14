@@ -77,4 +77,32 @@ describe('Relance', () => {
 
     expect(labels).toEqual(['Mettre en pause', 'Clore ce dossier']);
   });
+
+  it('lets the owner decide about a send interrupted by a stop', async () => {
+    const fixture = TestBed.createComponent(Relance);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    const toCheck = { ...DETAIL, sends: [{ ...DETAIL.sends[1], state: 'TO_CHECK' as const,
+      lastError: "envoi interrompu (arrêt de l'application)" }], countsByState: { TO_CHECK: 1 } };
+    http.expectOne('/api/rules/7').flush(toCheck);
+    await nextTick();
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.querySelector('tbody tr')?.textContent).toContain('À vérifier');
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    (page.querySelector('.verification button') as HTMLButtonElement).click();
+    const resolve = http.expectOne('/api/rules/7/sends/2/resolve');
+    expect(resolve.request.body).toEqual({ sent: true });
+    resolve.flush({ ...toCheck.sends[0], state: 'SENT' });
+    await nextTick();
+    http.expectOne('/api/rules/7').flush({ ...toCheck, sends: [{ ...toCheck.sends[0], state: 'SENT' }],
+      countsByState: { SENT: 1 } });
+    await nextTick();
+    await fixture.whenStable();
+
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Envoi marqué « Envoyé ».');
+    expect(page.querySelector('.verification')).toBeNull();
+    confirmSpy.mockRestore();
+  });
 });

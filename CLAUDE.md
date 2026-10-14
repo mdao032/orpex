@@ -49,6 +49,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   transaction → `SENT` ; échec temporaire → nouvelle tentative (`next_attempt_at`, +1/+5/+15 min, état d'attente
   conservé) ; échec définitif ou tentatives épuisées → `FAILED`. Seuls `PLANNED` et `VALIDATED` de relances non
   closes ni en pause partent.
+  Envoi resté `SENDING` plus de 10 min (arrêt pendant l'envoi) → `TO_CHECK` (au démarrage et à chaque passage),
+  **jamais renvoyé** : le propriétaire tranche (`/api/rules/{id}/sends/{sendId}/resolve`) → `SENT` ou `FAILED`.
   Désactivé pendant les tests (`orpex.worker.enabled=false` via failsafe) : les tests appellent `processDueSends()`.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
