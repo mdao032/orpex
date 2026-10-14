@@ -75,7 +75,7 @@ describe('Relance', () => {
     const page = await render();
     const labels = [...page.querySelectorAll('.actions button')].map((b) => b.textContent?.trim());
 
-    expect(labels).toEqual(['Mettre en pause', 'Clore ce dossier']);
+    expect(labels).toEqual(["M'envoyer cette relance", 'Mettre en pause', 'Clore ce dossier']);
   });
 
   it('lets the owner decide about a send interrupted by a stop', async () => {

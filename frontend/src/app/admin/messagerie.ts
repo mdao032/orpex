@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -17,11 +18,17 @@ interface SmtpView {
   fromName: string | null;
   caCertificate: string | null;
   encryptionKeyAvailable: boolean;
+  health: { status: 'UNKNOWN' | 'OK' | 'ERROR'; checkedAt: string | null; detail: string | null };
+}
+
+interface CheckResult {
+  success: boolean;
+  detail: string | null;
 }
 
 @Component({
   selector: 'app-messagerie',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DatePipe],
   styleUrls: ['../shared/page.scss', './messagerie.scss'],
   template: `
     <h1>Messagerie</h1>
@@ -39,6 +46,28 @@ interface SmtpView {
           être enregistré. Un relais sans authentification reste possible.
         </p>
       }
+
+      <section class="bloc" aria-labelledby="titre-etat">
+        <h2 id="titre-etat">État du relais</h2>
+        @if (!v.configured) {
+          <p class="aide">Le contrôle régulier ne concerne que le relais enregistré sur cet écran.</p>
+        } @else if (v.health.status === 'OK') {
+          <p class="info">Joignable (contrôlé le {{ v.health.checkedAt | date: 'dd/MM/yyyy à HH:mm' }}).</p>
+        } @else if (v.health.status === 'ERROR') {
+          <p class="erreur">
+            Injoignable ou refus (contrôlé le {{ v.health.checkedAt | date: 'dd/MM/yyyy à HH:mm' }}) :
+            {{ v.health.detail }}
+          </p>
+        } @else {
+          <p class="aide">Pas encore contrôlé : le contrôle a lieu toutes les 15 minutes.</p>
+        }
+        <div class="confirmation">
+          @if (v.configured) {
+            <button type="button" (click)="controler()" [disabled]="enCours()">Contrôler maintenant</button>
+          }
+          <button type="button" (click)="envoyerTest()" [disabled]="enCours()">M'envoyer un mail de test</button>
+        </div>
+      </section>
 
       <form class="bloc formulaire" [formGroup]="formulaire" (ngSubmit)="enregistrer()" novalidate>
         <h2>Relais SMTP</h2>
@@ -129,6 +158,30 @@ export class Messagerie implements OnInit {
       const vue = await firstValueFrom(this.http.put<SmtpView>('/api/admin/smtp', this.formulaire.getRawValue()));
       this.afficher(vue);
       this.message.set({ texte: 'Configuration enregistrée : elle est utilisée dès maintenant.', erreur: false });
+    } catch (error) {
+      this.message.set({ texte: apiErrorMessage(error), erreur: true });
+    } finally {
+      this.enCours.set(false);
+    }
+  }
+
+  protected async controler(): Promise<void> {
+    await this.verifier('/api/admin/smtp/health', 'Le relais répond correctement.', 'Le relais ne répond pas : ');
+  }
+
+  protected async envoyerTest(): Promise<void> {
+    await this.verifier('/api/admin/smtp/test', 'Mail de test envoyé à votre adresse : vérifiez votre messagerie.',
+      "Le mail de test n'est pas parti : ");
+  }
+
+  private async verifier(url: string, succes: string, echec: string): Promise<void> {
+    this.enCours.set(true);
+    try {
+      const resultat = await firstValueFrom(this.http.post<CheckResult>(url, null));
+      this.message.set(resultat.success
+        ? { texte: succes, erreur: false }
+        : { texte: echec + (resultat.detail ?? 'erreur inconnue'), erreur: true });
+      this.vue.set(await firstValueFrom(this.http.get<SmtpView>('/api/admin/smtp')));
     } catch (error) {
       this.message.set({ texte: apiErrorMessage(error), erreur: true });
     } finally {

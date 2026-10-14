@@ -72,6 +72,13 @@ export class RulesApi {
     );
   }
 
+  /** Rendu exact de la relance, envoyé à l'utilisateur connecté ; aucun envoi planifié n'est touché. */
+  sendToMyself(id: number): Promise<{ success: boolean; to: string; detail: string | null }> {
+    return firstValueFrom(
+      this.http.post<{ success: boolean; to: string; detail: string | null }>(`/api/rules/${id}/test-send`, null),
+    );
+  }
+
   /** Crée les envois de la relance. */
   activate(id: number): Promise<ActivationResult> {
     return firstValueFrom(this.http.post<ActivationResult>(`/api/rules/${id}/activate`, null));

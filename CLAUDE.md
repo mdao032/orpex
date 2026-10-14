@@ -59,6 +59,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `spring.mail.*` via `MailSenderProvider` ; mot de passe chiffré AES-256-GCM (`SecretCipher`), clé `ORPEX_SECRET_KEY`
   (jamais en base, clé de dev dans `application-dev.properties`), jamais renvoyé ni journalisé ; certificat d'autorité
   interne (PEM) ajouté aux autorités de confiance, vérification du nom du serveur.
+  Vérifications : mail de test à l'admin (`/api/admin/smtp/test`), contrôle de santé (connexion sans envoi, toutes
+  les 15 min et `/api/admin/smtp/health`), « m'envoyer cette relance » (`/api/rules/{id}/test-send`, rien planifié).
 - `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
   `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
   Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.
@@ -132,8 +134,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Phases 0 à 4 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
-  planifiés). Phase 5 : envoi réel des mails.
+- Phases 0 à 5 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
+  planifiés, envoi réel des mails). Phase 6 : validation quotidienne.
   Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.

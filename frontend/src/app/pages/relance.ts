@@ -33,6 +33,7 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
       <div class="entete-liste">
         <h1>Relance {{ d.rule.businessId }} <span class="badge">{{ statut(d.rule) }}</span></h1>
         <div class="actions">
+          <button type="button" (click)="mEnvoyer()" [disabled]="enCours()">M'envoyer cette relance</button>
           @if (!d.rule.activatedAt && d.rule.status === 'ACTIVE') {
             <button type="submit" (click)="activer()" [disabled]="enCours()">Activer</button>
           }
@@ -182,6 +183,21 @@ export class Relance implements OnInit {
   protected async basculerPause(): Promise<void> {
     const rule = this.detail()!.rule;
     await this.executer(async () => pauseMessage(rule.businessId, await this.api.setPaused(this.id, !rule.paused)));
+  }
+
+  /** Rendu exact envoyé à l'utilisateur lui-même, pour vérifier le message ; rien n'est planifié. */
+  protected async mEnvoyer(): Promise<void> {
+    this.enCours.set(true);
+    try {
+      const resultat = await this.api.sendToMyself(this.id);
+      this.message.set(resultat.success
+        ? { texte: `Relance envoyée à votre adresse (${resultat.to}) pour vérification.`, erreur: false }
+        : { texte: `L'envoi de test n'est pas parti : ${resultat.detail}`, erreur: true });
+    } catch (error) {
+      this.message.set({ texte: apiErrorMessage(error), erreur: true });
+    } finally {
+      this.enCours.set(false);
+    }
   }
 
   /** Après vérification (messagerie, destinataire) : l'envoi est-il parti ? Il ne sera jamais renvoyé. */

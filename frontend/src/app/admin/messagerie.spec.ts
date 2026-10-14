@@ -9,6 +9,7 @@ const SAVED = {
   configured: true, host: 'relais.banque.ml', port: 587, encryption: 'STARTTLS', username: 'orpex',
   passwordSet: true, fromAddress: 'relances@banque.ml', fromName: 'Banque - Relances', caCertificate: null,
   encryptionKeyAvailable: true,
+  health: { status: 'ERROR', checkedAt: '2026-10-14T08:00:00Z', detail: '535 5.7.8 authentication failed' },
 };
 
 describe('Messagerie', () => {
@@ -58,5 +59,20 @@ describe('Messagerie', () => {
 
     expect(page.textContent).toContain('configuration du serveur (localhost:1025)');
     expect(page.querySelector('[role="alert"]')?.textContent).toContain('ORPEX_SECRET_KEY');
+  });
+
+  it('shows the relay health and sends a test mail', async () => {
+    const { page, stable } = await render(SAVED);
+    expect(page.textContent).toContain('535 5.7.8 authentication failed');
+
+    const testButton = [...page.querySelectorAll('button')].find((b) => b.textContent?.includes('mail de test'));
+    testButton?.click();
+    http.expectOne('/api/admin/smtp/test').flush({ success: true, detail: null });
+    await nextTick();
+    http.expectOne((req) => req.method === 'GET').flush({ ...SAVED, health: { status: 'OK', checkedAt: null, detail: null } });
+    await nextTick();
+    await stable();
+
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('Mail de test envoyé');
   });
 });
