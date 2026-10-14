@@ -55,6 +55,10 @@ public class Occurrence {
     @Column(name = "last_error", columnDefinition = "text")
     private String lastError;
 
+    /** Prochaine tentative après un échec temporaire ; null sinon. */
+    @Column(name = "next_attempt_at")
+    private Instant nextAttemptAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -106,13 +110,28 @@ public class Occurrence {
         this.attempts++;
         this.sentAt = now;
         this.lastError = null;
+        this.nextAttemptAt = null;
         this.updatedAt = now;
     }
 
+    /** Échec définitif : plus aucune tentative. */
     public void markFailed(String error, Instant now) {
         this.state = OccurrenceState.FAILED;
         this.attempts++;
         this.lastError = error;
+        this.nextAttemptAt = null;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Échec temporaire : l'envoi reprend son état d'attente ({@code PLANNED}, ou {@code VALIDATED} s'il avait été
+     * validé) et repartira à {@code nextAttempt}.
+     */
+    public void scheduleRetry(String error, Instant nextAttempt, OccurrenceState waitingState, Instant now) {
+        this.state = waitingState;
+        this.attempts++;
+        this.lastError = error;
+        this.nextAttemptAt = nextAttempt;
         this.updatedAt = now;
     }
 
@@ -158,5 +177,9 @@ public class Occurrence {
 
     public String getLastError() {
         return lastError;
+    }
+
+    public Instant getNextAttemptAt() {
+        return nextAttemptAt;
     }
 }

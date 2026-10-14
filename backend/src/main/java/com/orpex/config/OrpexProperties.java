@@ -1,6 +1,7 @@
 package com.orpex.config;
 
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -51,7 +52,9 @@ public record OrpexProperties(String timezone, int validationCutoffMinutes, Boot
      * @param delay       délai entre deux passages
      * @param batchSize   envois réservés au plus par passage
      * @param maxLateness retard au-delà duquel un envoi dû n'est plus fait : il est manqué (arrêt du service…)
+     * @param retryDelays délais des nouvelles tentatives après un échec temporaire, une par délai
      */
-    public record Worker(boolean enabled, Duration delay, int batchSize, Duration maxLateness) {
+    public record Worker(boolean enabled, Duration delay, int batchSize, Duration maxLateness,
+                         List<Duration> retryDelays) {
     }
 }

@@ -28,24 +28,29 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     List<Occurrence> findAllByIdIn(Collection<Long> ids);
 
     /**
-     * Worker : réserve les envois dus qui peuvent partir (prévus ou validés, heure atteinte depuis moins de
-     * {@code oldest}, ligne non close ni en pause). {@code SKIP LOCKED} : un envoi déjà réservé par un autre worker
-     * est ignoré, il ne peut donc jamais partir deux fois.
+     * Worker : réserve les envois dus qui peuvent partir (prévus ou validés, ligne non close ni en pause) : heure
+     * prévue atteinte depuis moins de {@code oldest}, ou nouvelle tentative arrivée à échéance. {@code SKIP LOCKED} :
+     * un envoi déjà réservé par un autre worker est ignoré, il ne peut donc jamais partir deux fois.
      */
     @Query(nativeQuery = true, value = """
             select o.id from occurrences o join rules r on r.id = o.rule_id
-            where o.state in ('PLANNED', 'VALIDATED') and o.scheduled_at <= :now and o.scheduled_at >= :oldest
+            where o.state in ('PLANNED', 'VALIDATED')
+              and (o.next_attempt_at <= :now
+                   or (o.next_attempt_at is null and o.scheduled_at <= :now and o.scheduled_at >= :oldest))
               and r.status = 'ACTIVE' and not r.paused
-            order by o.scheduled_at, o.id
+            order by coalesce(o.next_attempt_at, o.scheduled_at), o.id
             limit :limit
             for update of o skip locked""")
     List<Long> lockDue(@Param("now") Instant now, @Param("oldest") Instant oldest, @Param("limit") int limit);
 
-    /** Worker : envois prévus ou validés dont l'heure est dépassée de trop pour partir encore (arrêt du service). */
+    /**
+     * Worker : envois prévus ou validés dont l'heure est dépassée de trop pour partir encore (arrêt du service). Un
+     * envoi en cours de nouvelles tentatives n'est pas concerné : ses tentatives sont espacées volontairement.
+     */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             update Occurrence o set o.state = :missed, o.updatedAt = :now
-            where o.state in :sendable and o.scheduledAt < :oldest""")
+            where o.state in :sendable and o.scheduledAt < :oldest and o.nextAttemptAt is null""")
     int markTooLateAsMissed(@Param("now") Instant now, @Param("oldest") Instant oldest,
             @Param("sendable") Collection<OccurrenceState> sendable, @Param("missed") OccurrenceState missed);
 

@@ -46,7 +46,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   variables `MessageTemplate` : une variable sans valeur fait échouer l'envoi, jamais de champ vide).
 - `backend/.../sending/` : `SendWorker` (toutes les 30 s, `orpex.worker.*`) : rien pendant une pause générale ;
   envoi dû depuis plus de 15 min → `MISSED` ; réservation `FOR UPDATE SKIP LOCKED` → `SENDING` ; envoi hors
-  transaction → `SENT` ou `FAILED`. Seuls `PLANNED` et `VALIDATED` de relances non closes ni en pause partent.
+  transaction → `SENT` ; échec temporaire → nouvelle tentative (`next_attempt_at`, +1/+5/+15 min, état d'attente
+  conservé) ; échec définitif ou tentatives épuisées → `FAILED`. Seuls `PLANNED` et `VALIDATED` de relances non
+  closes ni en pause partent.
   Désactivé pendant les tests (`orpex.worker.enabled=false` via failsafe) : les tests appellent `processDueSends()`.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des

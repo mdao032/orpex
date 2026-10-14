@@ -12,6 +12,7 @@ import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendingControlService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -30,7 +31,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>Rien pendant une pause générale.</li>
  *   <li>Un envoi dû depuis plus de {@code orpex.worker.max-lateness} n'est plus fait : manqué.</li>
  *   <li>Réservation en courte transaction ({@code FOR UPDATE SKIP LOCKED}) : passage en {@code SENDING}.</li>
- *   <li>Envoi hors transaction, puis {@code SENT} ou {@code FAILED} (une transaction par envoi).</li>
+ *   <li>Envoi hors transaction, puis {@code SENT} ; après un échec temporaire, nouvelle tentative programmée
+ *       ({@code orpex.worker.retry-delays}, 3 au plus) ; sinon, ou une fois les tentatives épuisées,
+ *       {@code FAILED}.</li>
  * </ol>
  * Un arrêt entre l'acceptation par le serveur et l'écriture de {@code SENT} laisse l'envoi en {@code SENDING} : il
  * sera marqué « à vérifier » au redémarrage, jamais renvoyé automatiquement.
@@ -43,7 +46,7 @@ public class SendWorker {
             OccurrenceState.VALIDATED);
 
     /** Bilan d'un passage du worker. */
-    public record Pass(int sent, int failed, int missed) {
+    public record Pass(int sent, int retried, int failed, int missed) {
     }
 
     private record Reservation(List<Occurrence> due, int missed) {
@@ -71,7 +74,7 @@ public class SendWorker {
     /** Un passage : traite au plus un lot d'envois dus. */
     public Pass processDueSends() {
         if (sendingControl.globalState().paused()) {
-            return new Pass(0, 0, 0);
+            return new Pass(0, 0, 0, 0);
         }
         Instant now = clock.instant();
         Instant oldest = now.minus(properties.worker().maxLateness());
@@ -87,19 +90,22 @@ public class SendWorker {
             return new Reservation(due, missed);
         });
         int sent = 0;
+        int retried = 0;
         int failed = 0;
         for (Occurrence occurrence : reservation.due()) {
-            if (send(occurrence)) {
-                sent++;
-            } else {
-                failed++;
+            switch (send(occurrence)) {
+                case SENT -> sent++;
+                case RETRY -> retried++;
+                case FAILED -> failed++;
             }
         }
-        return new Pass(sent, failed, reservation.missed());
+        return new Pass(sent, retried, failed, reservation.missed());
     }
 
-    /** Envoie un envoi réservé ; renvoie vrai s'il est parti. */
-    private boolean send(Occurrence reserved) {
+    private enum Outcome { SENT, RETRY, FAILED }
+
+    /** Envoie un envoi réservé et enregistre le résultat. */
+    private Outcome send(Occurrence reserved) {
         Rule rule = rules.findForSending(reserved.getRuleId()).orElseThrow();
         String error;
         try {
@@ -109,17 +115,28 @@ public class SendWorker {
             record(reserved.getId(), occurrence -> occurrence.markSent(clock.instant()));
             log.info("Envoi {} parti : relance {} (id {}) du {}", reserved.getId(), rule.getBusinessId(),
                     rule.getId(), reserved.getScheduledDate());
-            return true;
+            return Outcome.SENT;
         } catch (MessageTemplate.MissingVariableException e) {
             error = "message incomplet : " + e.getMessage();
         } catch (MailSendException e) {
-            error = e.getMessage();
+            List<Duration> delays = properties.worker().retryDelays();
+            int failures = reserved.getAttempts() + 1;
+            if (e.isRetryable() && failures <= delays.size()) {
+                Instant now = clock.instant();
+                Instant next = now.plus(delays.get(failures - 1));
+                OccurrenceState waiting = rule.isDailyValidation() ? OccurrenceState.VALIDATED : OccurrenceState.PLANNED;
+                record(reserved.getId(), occurrence -> occurrence.scheduleRetry(e.getMessage(), next, waiting, now));
+                log.warn("Envoi {} : échec temporaire {} ({}), nouvelle tentative à {}", reserved.getId(), failures,
+                        e.getMessage(), next);
+                return Outcome.RETRY;
+            }
+            error = e.isRetryable() ? e.getMessage() + " (" + failures + " tentatives)" : e.getMessage();
         }
         String reason = error;
         record(reserved.getId(), occurrence -> occurrence.markFailed(reason, clock.instant()));
         log.warn("Envoi {} en échec : relance {} (id {}) du {} : {}", reserved.getId(), rule.getBusinessId(),
                 rule.getId(), reserved.getScheduledDate(), reason);
-        return false;
+        return Outcome.FAILED;
     }
 
     private void record(long occurrenceId, Consumer<Occurrence> change) {

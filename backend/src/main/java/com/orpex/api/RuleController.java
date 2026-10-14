@@ -57,11 +57,12 @@ public class RuleController {
 
     /** Un envoi : jour et heure prévus, état, et ce qui s'est passé (date d'envoi réelle, tentatives, erreur). */
     public record OccurrenceView(long id, LocalDate scheduledDate, Instant scheduledAt, OccurrenceState state,
-                                 Instant validatedAt, Instant sentAt, int attempts, String lastError) {
+                                 Instant validatedAt, Instant sentAt, int attempts, String lastError,
+                                 Instant nextAttemptAt) {
 
         static OccurrenceView of(Occurrence o) {
             return new OccurrenceView(o.getId(), o.getScheduledDate(), o.getScheduledAt(), o.getState(),
-                    o.getValidatedAt(), o.getSentAt(), o.getAttempts(), o.getLastError());
+                    o.getValidatedAt(), o.getSentAt(), o.getAttempts(), o.getLastError(), o.getNextAttemptAt());
         }
     }
 
