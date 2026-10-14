@@ -18,11 +18,12 @@ const DETAIL: RuleDetail = {
   body: 'Bonjour {{prenom}},\nmerci de régler la facture.',
   sends: [
     { id: 1, scheduledDate: '2027-06-07', scheduledAt: '2027-06-07T09:00:00Z', state: 'MISSED',
-      validatedAt: null, sentAt: null, attempts: 0, lastError: null },
+      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null },
     { id: 2, scheduledDate: '2027-06-08', scheduledAt: '2027-06-08T09:00:00Z', state: 'PLANNED',
-      validatedAt: null, sentAt: null, attempts: 0, lastError: null },
+      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null },
     { id: 3, scheduledDate: '2027-06-09', scheduledAt: '2027-06-09T09:00:00Z', state: 'PLANNED',
-      validatedAt: null, sentAt: null, attempts: 0, lastError: null },
+      validatedAt: null, sentAt: null, attempts: 1, lastError: 'serveur de messagerie injoignable',
+      nextAttemptAt: '2027-06-09T09:01:00Z' },
   ],
   countsByState: { MISSED: 1, PLANNED: 2 },
 };
@@ -61,6 +62,9 @@ describe('Relance', () => {
     expect(rows[0].textContent).toContain('07/06/2027');
     expect(rows[0].textContent).toContain('Manqué');
     expect(rows[1].textContent).toContain('Prévu');
+    expect(rows[2].textContent).toContain('1 tentative(s).');
+    expect(rows[2].textContent).toContain('Nouvelle tentative prévue le 09/06/2027');
+    expect(rows[2].textContent).toContain('serveur de messagerie injoignable');
     const counters = page.querySelector('.compteurs')?.textContent ?? '';
     expect(counters).toContain('0 envoyé(s)');
     expect(counters).toContain('2 à venir');

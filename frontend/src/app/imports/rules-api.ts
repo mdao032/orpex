@@ -31,6 +31,8 @@ export interface OccurrenceView {
   sentAt: string | null;
   attempts: number;
   lastError: string | null;
+  /** Prochaine tentative après un échec temporaire. */
+  nextAttemptAt: string | null;
 }
 
 /** Détail d'une relance : configuration, message, envois et leur nombre par état. */

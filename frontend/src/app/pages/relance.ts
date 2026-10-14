@@ -112,7 +112,12 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
                   <td class="detail">
                     @if (e.sentAt) { Envoyé le {{ e.sentAt | date: 'dd/MM/yyyy à HH:mm' }}. }
                     @if (e.validatedAt) { Validé le {{ e.validatedAt | date: 'dd/MM/yyyy à HH:mm' }}. }
-                    @if (e.attempts > 1) { {{ e.attempts }} tentatives. }
+                    @if (e.attempts > 1 || (e.attempts === 1 && e.state !== 'SENT')) {
+                      {{ e.attempts }} tentative(s).
+                    }
+                    @if (e.nextAttemptAt) {
+                      Nouvelle tentative prévue le {{ e.nextAttemptAt | date: 'dd/MM/yyyy à HH:mm' }}.
+                    }
                     @if (e.lastError) { <span class="erreur">{{ e.lastError }}</span> }
                   </td>
                 </tr>
