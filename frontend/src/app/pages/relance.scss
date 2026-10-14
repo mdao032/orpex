@@ -1,0 +1,48 @@
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fiche {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  gap: 0.4rem 1rem;
+  margin: 0;
+
+  dt {
+    font-weight: 600;
+    color: var(--orpex-ink-soft);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.contenu {
+  white-space: pre-wrap;
+}
+
+.etat-sent .badge {
+  color: var(--orpex-accent-ink);
+  background: var(--orpex-accent);
+  border-color: var(--orpex-accent);
+}
+
+.etat-failed .badge,
+.etat-to_check .badge {
+  color: var(--orpex-danger);
+  border-color: var(--orpex-danger);
+}
+
+.etat-cancelled td,
+.etat-missed td,
+.etat-not_validated td {
+  color: var(--orpex-ink-soft);
+}

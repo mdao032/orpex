@@ -1,8 +1,16 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ActivationResult, RuleView, RulesApi } from '../imports/rules-api';
+import { RuleView, RulesApi } from '../imports/rules-api';
 import { apiErrorMessage } from '../shared/api-error';
-import { daysRange, scheduleLabel } from '../shared/schedule-label';
+import {
+  activationMessage,
+  closeMessage,
+  closeQuestion,
+  forecastLabel,
+  pauseMessage,
+  ruleStatusLabel,
+} from '../shared/rule-labels';
+import { scheduleLabel } from '../shared/schedule-label';
 
 @Component({
   selector: 'app-lignes',
@@ -25,7 +33,7 @@ import { daysRange, scheduleLabel } from '../shared/schedule-label';
       <div class="entete-liste">
         <p class="aide">
           {{ relances().length }} relance(s). Une relance n'envoie rien tant qu'elle n'est pas activée : l'activation
-          crée ses envois selon son calendrier.
+          crée ses envois selon son calendrier. Cliquez sur une relance pour voir ses envois.
         </p>
         @if (aActiver() > 0) {
           <button type="submit" (click)="activerTout()" [disabled]="enCours()">
@@ -48,12 +56,12 @@ import { daysRange, scheduleLabel } from '../shared/schedule-label';
         <tbody>
           @for (r of relances(); track r.id) {
             <tr [class.inactif]="r.status === 'CLOSED'">
-              <td>{{ r.businessId }}</td>
+              <td><a [routerLink]="['/lignes', r.id]">{{ r.businessId }}</a></td>
               <td>
                 {{ r.recipientEmail }}
                 @if (r.caseReference) { <div class="detail">{{ r.caseReference }}</div> }
               </td>
-              <td>{{ r.subject }}</td>
+              <td><a [routerLink]="['/lignes', r.id]">{{ r.subject }}</a></td>
               <td class="detail">
                 {{ calendrier(r) }}
                 @if (r.forecast; as f) {
@@ -94,6 +102,8 @@ export class Lignes implements OnInit {
     () => this.relances().filter((r) => !r.activatedAt && r.status === 'ACTIVE').length,
   );
   protected readonly calendrier = scheduleLabel;
+  protected readonly prevision = forecastLabel;
+  protected readonly statut = ruleStatusLabel;
 
   async ngOnInit(): Promise<void> {
     try {
@@ -105,49 +115,19 @@ export class Lignes implements OnInit {
     }
   }
 
-  protected prevision(f: NonNullable<RuleView['forecast']>): string {
-    if (f.planned === 0) {
-      return "À l'activation : aucun envoi à venir.";
-    }
-    return `À l'activation : ${f.planned} envoi(s) prévu(s) ${daysRange(f.first, f.last)}`
-      + (f.missedToday > 0 ? " (celui d'aujourd'hui est déjà passé)." : '.');
-  }
-
-  protected statut(r: RuleView): string {
-    if (r.status === 'CLOSED') {
-      return 'Clos';
-    }
-    if (!r.activatedAt) {
-      return 'Non activée';
-    }
-    return r.paused ? 'En pause' : 'Active';
-  }
-
   protected async activer(r: RuleView): Promise<void> {
-    await this.executer(async () => resume(await this.api.activate(r.id)));
+    await this.executer(async () => activationMessage(await this.api.activate(r.id)));
   }
 
   protected async basculerPause(r: RuleView): Promise<void> {
-    await this.executer(async () => {
-      const resultat = await this.api.setPaused(r.id, !r.paused);
-      if (resultat.paused) {
-        return `${r.businessId} en pause : ses envois ne partiront pas avant la reprise.`;
-      }
-      return `${r.businessId} reprise` + (resultat.missed > 0
-        ? ` : ${resultat.missed} envoi(s) manqué(s) pendant la pause.`
-        : '.');
-    });
+    await this.executer(async () => pauseMessage(r.businessId, await this.api.setPaused(r.id, !r.paused)));
   }
 
   protected async clore(r: RuleView): Promise<void> {
-    const question = `Clore le dossier ${r.businessId} ? Ses envois à venir seront annulés ; cette action est définitive.`;
-    if (!confirm(question)) {
+    if (!confirm(closeQuestion(r.businessId))) {
       return;
     }
-    await this.executer(async () => {
-      const { cancelled } = await this.api.close(r.id);
-      return `Dossier ${r.businessId} clos : ${cancelled} envoi(s) à venir annulé(s).`;
-    });
+    await this.executer(async () => closeMessage(r.businessId, (await this.api.close(r.id)).cancelled));
   }
 
   protected async activerTout(): Promise<void> {
@@ -169,11 +149,4 @@ export class Lignes implements OnInit {
       this.enCours.set(false);
     }
   }
-}
-
-function resume(r: ActivationResult): string {
-  const envois = r.planned === 0
-    ? 'aucun envoi à venir'
-    : `${r.planned} envoi(s) ${daysRange(r.first, r.last)}`;
-  return `${r.businessId} activée : ${envois}` + (r.missed > 0 ? ' (envoi du jour manqué : heure passée).' : '.');
 }

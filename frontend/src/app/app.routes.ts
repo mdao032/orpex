@@ -18,6 +18,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/lignes').then((m) => m.Lignes),
       },
       {
+        path: 'lignes/:id',
+        title: 'Relance – ORPEX',
+        loadComponent: () => import('./pages/relance').then((m) => m.Relance),
+      },
+      {
         path: 'import',
         title: 'Importer un fichier – ORPEX',
         loadComponent: () => import('./pages/import-fichier').then((m) => m.ImportFichier),

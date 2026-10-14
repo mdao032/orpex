@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { OccurrenceState } from '../shared/rule-labels';
 import { Schedule } from '../shared/schedule-label';
 
 export interface RuleView extends Schedule {
@@ -21,6 +22,25 @@ export interface RuleView extends Schedule {
   forecast: { planned: number; first: string | null; last: string | null; missedToday: number } | null;
 }
 
+export interface OccurrenceView {
+  id: number;
+  scheduledDate: string;
+  scheduledAt: string;
+  state: OccurrenceState;
+  validatedAt: string | null;
+  sentAt: string | null;
+  attempts: number;
+  lastError: string | null;
+}
+
+/** Détail d'une relance : configuration, message, envois et leur nombre par état. */
+export interface RuleDetail {
+  rule: RuleView;
+  body: string;
+  sends: OccurrenceView[];
+  countsByState: Partial<Record<OccurrenceState, number>>;
+}
+
 export interface ActivationResult {
   ruleId: number;
   businessId: string;
@@ -37,6 +57,10 @@ export class RulesApi {
 
   list(): Promise<RuleView[]> {
     return firstValueFrom(this.http.get<RuleView[]>('/api/rules'));
+  }
+
+  detail(id: number): Promise<RuleDetail> {
+    return firstValueFrom(this.http.get<RuleDetail>(`/api/rules/${id}`));
   }
 
   /** Crée les envois de la relance. */
