@@ -1,0 +1,45 @@
+.formulaire {
+  h2 {
+    margin-top: 1.25rem;
+  }
+
+  h2:first-child {
+    margin-top: 0;
+  }
+}
+
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  label {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-weight: 600;
+  }
+
+  .court {
+    flex: 0 1 7rem;
+  }
+}
+
+.case {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+textarea {
+  width: 100%;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+}
+
+.confirmation {
+  margin-top: 1rem;
+}

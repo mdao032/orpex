@@ -60,6 +60,12 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         loadComponent: () => import('./admin/envois').then((m) => m.Envois),
       },
+      {
+        path: 'admin/messagerie',
+        title: 'Messagerie – ORPEX',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./admin/messagerie').then((m) => m.Messagerie),
+      },
     ],
   },
   { path: '**', redirectTo: 'lignes' },
