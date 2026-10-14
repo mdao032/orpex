@@ -66,7 +66,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   Pauses (`SendingControlService`) : par relance (propriétaire, `/api/rules/{id}/pause|resume`) et générale
   (admin, `/api/admin/sending/pause|resume`, table `sending_control`, bandeau via `/api/sending-status`). À la reprise,
   les envois dont l'heure est passée deviennent `MISSED`. **Le worker d'envoi devra ignorer les relances en pause et
-  ne rien envoyer pendant une pause générale.** Les dépôts n'exposent que des
+  ne rien envoyer pendant une pause générale.**
+  Jours fériés modifiés (Q10) : `RescheduleService` recalcule dans la même transaction les envois futurs non
+  commencés des relances activées en jours ouvrés (annulé, ajouté, ou annulé repris) ; le passé n'est jamais touché. Les dépôts n'exposent que des
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
@@ -112,7 +114,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Phases 0 à 3 terminées (fondations, comptes et sécurité, jours fériés, import Excel) ; phase 4 en cours.
+- Phases 0 à 4 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
+  planifiés). Phase 5 : envoi réel des mails.
   Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.

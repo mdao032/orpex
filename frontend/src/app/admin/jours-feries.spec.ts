@@ -50,14 +50,15 @@ describe('JoursFeries', () => {
 
     const add = http.expectOne((req) => req.method === 'POST' && req.url === '/api/admin/holidays');
     expect(add.request.body).toEqual({ day: '2026-12-25', label: 'Noël' });
-    add.flush({ day: '2026-12-25', label: 'Noël' });
+    add.flush({ day: '2026-12-25', label: 'Noël', rescheduled: { rules: 2, cancelled: 3, added: 1 } });
     await nextTick();
     http.expectOne((req) => req.method === 'GET').flush([{ day: '2026-12-25', label: 'Noël' }]);
     await nextTick();
     await stable();
 
     expect(page.querySelectorAll('tbody tr').length).toBe(1);
-    expect(page.querySelector('[role="status"]')?.textContent).toContain('Noël ajouté.');
+    expect(page.querySelector('[role="status"]')?.textContent)
+      .toContain('Noël ajouté. Envois recalculés sur 2 relance(s) : 3 annulé(s), 1 ajouté(s).');
   });
 
   it('shows the server message when removal fails', async () => {
@@ -86,6 +87,7 @@ describe('JoursFeries', () => {
       added: [{ day: '2028-01-20', label: "Fête de l'Armée" }],
       alreadyPresent: 7,
       manualDays: ['Korité (fin du Ramadan)', 'Tabaski'],
+      rescheduled: { rules: 0, cancelled: 0, added: 0 },
     });
     await nextTick();
     http.expectOne((req) => req.method === 'GET').flush([{ day: '2028-01-20', label: "Fête de l'Armée" }]);

@@ -15,10 +15,26 @@ export interface Country {
   manualDays: string[];
 }
 
+/** Envois futurs recalculés après un changement des jours fériés. */
+export interface Rescheduled {
+  rules: number;
+  cancelled: number;
+  added: number;
+}
+
 export interface YearAdded {
   added: Holiday[];
   alreadyPresent: number;
   manualDays: string[];
+  rescheduled: Rescheduled;
+}
+
+/** Message du recalcul, vide si aucun envoi n'a changé. */
+export function rescheduledMessage(r: Rescheduled): string {
+  if (r.cancelled + r.added === 0) {
+    return '';
+  }
+  return ` Envois recalculés sur ${r.rules} relance(s) : ${r.cancelled} annulé(s), ${r.added} ajouté(s).`;
 }
 
 /** API des jours fériés (/api/admin/holidays). */
@@ -31,8 +47,8 @@ export class HolidaysApi {
     return firstValueFrom(this.http.get<Holiday[]>(this.base));
   }
 
-  add(day: string, label: string): Promise<Holiday> {
-    return firstValueFrom(this.http.post<Holiday>(this.base, { day, label }));
+  add(day: string, label: string): Promise<Holiday & { rescheduled: Rescheduled }> {
+    return firstValueFrom(this.http.post<Holiday & { rescheduled: Rescheduled }>(this.base, { day, label }));
   }
 
   /** Pays dont les jours fériés peuvent être ajoutés automatiquement. */
@@ -45,7 +61,7 @@ export class HolidaysApi {
     return firstValueFrom(this.http.post<YearAdded>(`${this.base}/national/${country}/${year}`, null));
   }
 
-  remove(day: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.base}/${day}`));
+  remove(day: string): Promise<Rescheduled> {
+    return firstValueFrom(this.http.delete<Rescheduled>(`${this.base}/${day}`));
   }
 }
