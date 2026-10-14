@@ -6,6 +6,16 @@ import { Lignes } from './lignes';
 
 const nextTick = () => new Promise((resolve) => setTimeout(resolve));
 
+/** Bouton d'action d'une ligne, par son libellé. */
+function button(page: HTMLElement, label: string): HTMLButtonElement {
+  const found = [...page.querySelectorAll<HTMLButtonElement>('td.actions button')]
+    .find((b) => b.textContent?.trim() === label);
+  if (!found) {
+    throw new Error(`Bouton « ${label} » absent`);
+  }
+  return found;
+}
+
 describe('Lignes', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -94,7 +104,7 @@ describe('Lignes', () => {
     const page = fixture.nativeElement as HTMLElement;
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    (page.querySelector('td.actions button') as HTMLButtonElement).click(); // Clore ce dossier
+    button(page, 'Clore ce dossier').click();
     expect(confirmSpy).toHaveBeenCalled();
     http.expectOne('/api/rules/9/close').flush({ ruleId: 9, businessId: 'P-9', cancelled: 5 });
     await nextTick();
@@ -119,5 +129,33 @@ describe('Lignes', () => {
 
     expect(page.querySelector('.prevision')?.textContent?.trim())
       .toBe("À l'activation : 1 envoi(s) prévu(s) le 26/10/2026.");
+  });
+
+  it('pauses an activated rule', async () => {
+    const fixture = TestBed.createComponent(Lignes);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    const rule = {
+      id: 11, businessId: 'P-11', recipientEmail: 'a@exemple.ml', firstName: null, lastName: null,
+      caseReference: null, subject: 'Relance', sendMode: 'PERIODE', sendDate: null, dueDate: null, daysBefore: null,
+      startDate: '2027-06-07', endDate: '2027-06-11', sendTime: '09:00:00', businessDaysOnly: true,
+      dailyValidation: false, status: 'ACTIVE', paused: false, activatedAt: '2026-10-13T11:00:00Z',
+      updatedAt: '2026-10-13T11:00:00Z', forecast: null,
+    };
+    http.expectOne('/api/rules').flush([rule]);
+    await nextTick();
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+
+    button(page, 'Mettre en pause').click();
+    http.expectOne('/api/rules/11/pause').flush({ businessId: 'P-11', paused: true, missed: 0 });
+    await nextTick();
+    http.expectOne('/api/rules').flush([{ ...rule, paused: true }]);
+    await nextTick();
+    await fixture.whenStable();
+
+    expect(page.querySelector('[role="status"]')?.textContent).toContain('P-11 en pause');
+    expect(page.querySelector('tbody tr')?.textContent).toContain('En pause');
+    expect(button(page, 'Reprendre')).toBeTruthy();
   });
 });

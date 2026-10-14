@@ -49,6 +49,12 @@ export const routes: Routes = [
         canActivate: [adminGuard],
         loadComponent: () => import('./admin/jours-feries').then((m) => m.JoursFeries),
       },
+      {
+        path: 'admin/envois',
+        title: 'Envois – ORPEX',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./admin/envois').then((m) => m.Envois),
+      },
     ],
   },
   { path: '**', redirectTo: 'lignes' },

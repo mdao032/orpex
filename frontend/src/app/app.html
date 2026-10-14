@@ -8,6 +8,7 @@
       @if (auth.isAdmin()) {
         <a routerLink="/admin/comptes" routerLinkActive="actif">Comptes</a>
         <a routerLink="/admin/jours-feries" routerLinkActive="actif">Jours fériés</a>
+        <a routerLink="/admin/envois" routerLinkActive="actif">Envois</a>
       }
     </nav>
     <div class="session">
@@ -17,6 +18,12 @@
     </div>
   }
 </header>
+
+@if (auth.user() && envois.state().paused) {
+  <p class="bandeau-pause" role="alert">
+    Tous les envois sont suspendus par un administrateur : aucune relance ne part pour le moment.
+  </p>
+}
 
 <main class="contenu">
   <router-outlet />

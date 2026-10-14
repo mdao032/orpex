@@ -32,8 +32,24 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelectorAll('nav a').length).toBe(6); // 4 pages + Comptes et Jours fériés (administrateur)
+    expect(compiled.querySelectorAll('nav a').length).toBe(7); // 4 pages + Comptes, Jours fériés, Envois (admin)
     expect(compiled.querySelector('.utilisateur')?.textContent).toContain('admin@orpex.local');
     expect(compiled.querySelector('.deconnexion')).not.toBeNull();
+  });
+
+  it('warns every user when all sending is paused', async () => {
+    const http = TestBed.inject(HttpTestingController);
+    const refreshed = TestBed.inject(Auth).refresh();
+    http.expectOne('/api/me').flush({ email: 'a@b.c', roles: ['ROLE_USER'], mustChangePassword: false });
+    await refreshed;
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    http.expectOne('/api/sending-status').flush({ paused: true, changedAt: '2026-10-14T08:00:00Z' });
+    await new Promise((resolve) => setTimeout(resolve));
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.bandeau-pause')?.textContent)
+      .toContain('Tous les envois sont suspendus');
   });
 });

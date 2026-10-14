@@ -51,6 +51,12 @@ export class RulesApi {
     );
   }
 
+  /** Pause (true) ou reprise (false) ; à la reprise, {@code missed} envois dont l'heure est passée sont manqués. */
+  setPaused(id: number, paused: boolean): Promise<{ businessId: string; paused: boolean; missed: number }> {
+    return firstValueFrom(this.http.post<{ businessId: string; paused: boolean; missed: number }>(
+      `/api/rules/${id}/${paused ? 'pause' : 'resume'}`, null));
+  }
+
   /** Active toutes les relances non encore activées et non closes. */
   activateAll(): Promise<ActivationResult[]> {
     return firstValueFrom(this.http.post<ActivationResult[]>('/api/rules/activate-all', null));

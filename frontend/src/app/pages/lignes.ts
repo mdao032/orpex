@@ -66,6 +66,11 @@ import { daysRange, scheduleLabel } from '../shared/schedule-label';
                 @if (!r.activatedAt && r.status === 'ACTIVE') {
                   <button type="button" (click)="activer(r)" [disabled]="enCours()">Activer</button>
                 }
+                @if (r.activatedAt && r.status === 'ACTIVE') {
+                  <button type="button" (click)="basculerPause(r)" [disabled]="enCours()">
+                    {{ r.paused ? 'Reprendre' : 'Mettre en pause' }}
+                  </button>
+                }
                 @if (r.status === 'ACTIVE') {
                   <button type="button" (click)="clore(r)" [disabled]="enCours()">Clore ce dossier</button>
                 }
@@ -120,6 +125,18 @@ export class Lignes implements OnInit {
 
   protected async activer(r: RuleView): Promise<void> {
     await this.executer(async () => resume(await this.api.activate(r.id)));
+  }
+
+  protected async basculerPause(r: RuleView): Promise<void> {
+    await this.executer(async () => {
+      const resultat = await this.api.setPaused(r.id, !r.paused);
+      if (resultat.paused) {
+        return `${r.businessId} en pause : ses envois ne partiront pas avant la reprise.`;
+      }
+      return `${r.businessId} reprise` + (resultat.missed > 0
+        ? ` : ${resultat.missed} envoi(s) manqué(s) pendant la pause.`
+        : '.');
+    });
   }
 
   protected async clore(r: RuleView): Promise<void> {

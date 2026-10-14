@@ -62,7 +62,11 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `/activate-all`) : crée les envois (`PLANNED`, ou `AWAITING_VALIDATION` si validation quotidienne ; `MISSED` pour
   l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation.
   Clôture (`ClosureService`, `POST /api/rules/{id}/close`) : statut clos, envois non commencés (`NOT_STARTED`)
-  passés en `CANCELLED`, jamais supprimés ; pas de réouverture (non prévue par la spécification). Les dépôts n'exposent que des
+  passés en `CANCELLED`, jamais supprimés ; pas de réouverture (non prévue par la spécification).
+  Pauses (`SendingControlService`) : par relance (propriétaire, `/api/rules/{id}/pause|resume`) et générale
+  (admin, `/api/admin/sending/pause|resume`, table `sending_control`, bandeau via `/api/sending-status`). À la reprise,
+  les envois dont l'heure est passée deviennent `MISSED`. **Le worker d'envoi devra ignorer les relances en pause et
+  ne rien envoyer pendant une pause générale.** Les dépôts n'exposent que des
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
