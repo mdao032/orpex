@@ -6,6 +6,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Accès aux lignes, toujours filtré par propriétaire (spécification §12) : ce dépôt n'expose volontairement aucune
@@ -40,6 +41,10 @@ public interface RuleRepository extends Repository<Rule, Long> {
             select r from Rule r where r.activatedAt is not null and r.businessDaysOnly = true
             and r.status = com.orpex.core.importing.RuleStatus.ACTIVE order by r.id""")
     List<Rule> findAllDependingOnHolidays();
+
+    /** Lecture d'une ligne par le worker d'envoi, pour l'envoi qu'il vient de réserver (opération système). */
+    @Query("select r from Rule r where r.id = :id")
+    Optional<Rule> findForSending(@Param("id") long id);
 
     /** Envoie les écritures en attente à la base (pour détecter une violation d'unicité dans la transaction). */
     void flush();

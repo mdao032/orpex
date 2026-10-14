@@ -119,6 +119,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
+        <configuration>
+          <!-- Pas de worker automatique pendant les tests : chaque test déclenche les envois lui-même. -->
+          <systemPropertyVariables>
+            <orpex.worker.enabled>false</orpex.worker.enabled>
+          </systemPropertyVariables>
+        </configuration>
         <executions>
           <execution>
             <goals>

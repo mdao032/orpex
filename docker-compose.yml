@@ -18,6 +18,9 @@ services:
 
   mailpit:
     image: axllent/mailpit:v1.31.5
+    environment:
+      # Pas de recherche DNS inverse du client : sinon chaque mail reçu prend plusieurs secondes.
+      MP_SMTP_DISABLE_RDNS: "true"
     ports:
       - "1025:1025"   # SMTP : l'application envoie ici en développement
       - "8025:8025"   # Interface web : http://localhost:8025

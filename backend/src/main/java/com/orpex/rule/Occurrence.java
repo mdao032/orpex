@@ -94,6 +94,28 @@ public class Occurrence {
         this.updatedAt = now;
     }
 
+    /** Réservé par le worker : il part maintenant (jamais deux fois, grâce au verrou et à cet état). */
+    public void markSending(Instant now) {
+        this.state = OccurrenceState.SENDING;
+        this.updatedAt = now;
+    }
+
+    /** Accepté par le serveur de messagerie. */
+    public void markSent(Instant now) {
+        this.state = OccurrenceState.SENT;
+        this.attempts++;
+        this.sentAt = now;
+        this.lastError = null;
+        this.updatedAt = now;
+    }
+
+    public void markFailed(String error, Instant now) {
+        this.state = OccurrenceState.FAILED;
+        this.attempts++;
+        this.lastError = error;
+        this.updatedAt = now;
+    }
+
     public Long getId() {
         return id;
     }

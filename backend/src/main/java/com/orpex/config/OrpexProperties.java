@@ -12,10 +12,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param login                   limitation des tentatives de connexion
  * @param password                règles des mots de passe choisis par les utilisateurs
  * @param mail                    expéditeur des relances
+ * @param worker                  worker d'envoi
  */
 @ConfigurationProperties(prefix = "orpex")
 public record OrpexProperties(String timezone, int validationCutoffMinutes, BootstrapAdmin bootstrapAdmin,
-        Login login, Password password, Mail mail) {
+        Login login, Password password, Mail mail, Worker worker) {
 
     public record BootstrapAdmin(String email, String password) {
 
@@ -43,5 +44,14 @@ public record OrpexProperties(String timezone, int validationCutoffMinutes, Boot
      * @param fromName nom affiché de l'expéditeur
      */
     public record Mail(String from, String fromName) {
+    }
+
+    /**
+     * @param enabled     déclenchement automatique (désactivé dans les tests)
+     * @param delay       délai entre deux passages
+     * @param batchSize   envois réservés au plus par passage
+     * @param maxLateness retard au-delà duquel un envoi dû n'est plus fait : il est manqué (arrêt du service…)
+     */
+    public record Worker(boolean enabled, Duration delay, int batchSize, Duration maxLateness) {
     }
 }

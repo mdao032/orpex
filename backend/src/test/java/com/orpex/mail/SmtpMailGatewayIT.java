@@ -26,10 +26,11 @@ class SmtpMailGatewayIT {
     private static final GenericContainer<?> MAILPIT = new GenericContainer<>("axllent/mailpit:v1.31.5")
             .withExposedPorts(1025, 8025)
             .withEnv("MP_SMTP_ALLOWED_RECIPIENTS", "@exemple\\.ml$")
+            .withEnv("MP_SMTP_DISABLE_RDNS", "true")
             .waitingFor(Wait.forHttp("/livez").forPort(8025));
 
     private static final OrpexProperties PROPERTIES = new OrpexProperties("Africa/Bamako", 30, null, null, null,
-            new OrpexProperties.Mail("relances@banque.ml", "ORPEX - Relances"));
+            new OrpexProperties.Mail("relances@banque.ml", "ORPEX - Relances"), null);
 
     @BeforeAll
     static void start() {
@@ -81,6 +82,7 @@ class SmtpMailGatewayIT {
         sender.setPort(port);
         sender.getJavaMailProperties().put("mail.smtp.connectiontimeout", "3000");
         sender.getJavaMailProperties().put("mail.smtp.timeout", "3000");
+        sender.getJavaMailProperties().put("mail.smtp.localhost", "orpex.local");
         return new SmtpMailGateway(sender, PROPERTIES);
     }
 

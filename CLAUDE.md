@@ -44,6 +44,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `calendar` (modes d'envoi, jours ouvrés, calcul des jours, activation), `importing` (lecture .xlsx `XlsxReader`
   avec Apache POI, validation des lignes, empreinte de configuration), `mail` (interface `MailGateway`, rendu des
   variables `MessageTemplate` : une variable sans valeur fait échouer l'envoi, jamais de champ vide).
+- `backend/.../sending/` : `SendWorker` (toutes les 30 s, `orpex.worker.*`) : rien pendant une pause générale ;
+  envoi dû depuis plus de 15 min → `MISSED` ; réservation `FOR UPDATE SKIP LOCKED` → `SENDING` ; envoi hors
+  transaction → `SENT` ou `FAILED`. Seuls `PLANNED` et `VALIDATED` de relances non closes ni en pause partent.
+  Désactivé pendant les tests (`orpex.worker.enabled=false` via failsafe) : les tests appellent `processDueSends()`.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
   variables (colonnes libres comprises) sont relevées à l'import (`rules.variables`, JSON).
