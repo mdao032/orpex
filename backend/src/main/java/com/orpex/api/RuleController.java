@@ -10,6 +10,9 @@ import com.orpex.rule.ActivationService.ActivationResult;
 import com.orpex.rule.ActivationService.Forecast;
 import com.orpex.rule.ClosureService;
 import com.orpex.rule.ClosureService.ClosureResult;
+import com.orpex.rule.Occurrence;
+import com.orpex.rule.OccurrenceRepository;
+import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendingControlService;
@@ -17,7 +20,10 @@ import com.orpex.rule.SendingControlService.RulePauseResult;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Relances (lignes importées) de l'utilisateur connecté. */
 @RestController
@@ -48,15 +55,32 @@ public class RuleController {
         }
     }
 
+    /** Un envoi : jour et heure prévus, état, et ce qui s'est passé (date d'envoi réelle, tentatives, erreur). */
+    public record OccurrenceView(long id, LocalDate scheduledDate, Instant scheduledAt, OccurrenceState state,
+                                 Instant validatedAt, Instant sentAt, int attempts, String lastError) {
+
+        static OccurrenceView of(Occurrence o) {
+            return new OccurrenceView(o.getId(), o.getScheduledDate(), o.getScheduledAt(), o.getState(),
+                    o.getValidatedAt(), o.getSentAt(), o.getAttempts(), o.getLastError());
+        }
+    }
+
+    /** Détail d'une relance : sa configuration, son message, ses envois et leur nombre par état. */
+    public record RuleDetail(RuleView rule, String body, List<OccurrenceView> sends,
+                             Map<OccurrenceState, Long> countsByState) {
+    }
+
     private final RuleRepository rules;
+    private final OccurrenceRepository occurrences;
     private final ActivationService activationService;
     private final ClosureService closureService;
     private final SendingControlService sendingControl;
     private final CurrentUser currentUser;
 
-    public RuleController(RuleRepository rules, ActivationService activationService, ClosureService closureService,
-            SendingControlService sendingControl, CurrentUser currentUser) {
+    public RuleController(RuleRepository rules, OccurrenceRepository occurrences, ActivationService activationService,
+            ClosureService closureService, SendingControlService sendingControl, CurrentUser currentUser) {
         this.rules = rules;
+        this.occurrences = occurrences;
         this.activationService = activationService;
         this.closureService = closureService;
         this.sendingControl = sendingControl;
@@ -91,6 +115,20 @@ public class RuleController {
     @PostMapping("/activate-all")
     public List<ActivationResult> activateAll(Authentication authentication) {
         return activationService.activateAll(currentUser.id(authentication));
+    }
+
+    @GetMapping("/{id}")
+    @Transactional(readOnly = true)
+    public RuleDetail detail(@PathVariable long id, Authentication authentication) {
+        Rule rule = rules.findByIdAndOwnerId(id, currentUser.id(authentication))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Relance introuvable."));
+        List<OccurrenceView> sends = occurrences.findAllByRuleIdOrderByScheduledDateAsc(rule.getId()).stream()
+                .map(OccurrenceView::of).toList();
+        Map<OccurrenceState, Long> counts = new EnumMap<>(OccurrenceState.class);
+        sends.forEach(send -> counts.merge(send.state(), 1L, Long::sum));
+        Forecast forecast = rule.isActivated() || rule.getStatus() != RuleStatus.ACTIVE
+                ? null : activationService.forecast(rule, activationService.calculator());
+        return new RuleDetail(RuleView.of(rule, forecast), rule.getBody(), sends, counts);
     }
 
     @GetMapping

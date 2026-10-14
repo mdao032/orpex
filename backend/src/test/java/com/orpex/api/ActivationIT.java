@@ -89,6 +89,16 @@ class ActivationIT {
         assertThat(rules.findByIdAndOwnerId(id, owner).orElseThrow().isActivated()).isTrue();
         mvc.perform(get("/api/rules").session(session))
                 .andExpect(jsonPath("$[0].forecast").doesNotExist());
+        mvc.perform(get("/api/rules/" + id).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rule.businessId").value("ACT-1"))
+                .andExpect(jsonPath("$.body").value("Bonjour"))
+                .andExpect(jsonPath("$.sends.length()").value(5))
+                .andExpect(jsonPath("$.sends[0].scheduledDate").value("2027-06-07"))
+                .andExpect(jsonPath("$.sends[0].state").value("PLANNED"))
+                .andExpect(jsonPath("$.countsByState.PLANNED").value(5));
+        mvc.perform(get("/api/rules/" + id).session(login(mvc, user2(), PASSWORD)))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -192,6 +202,12 @@ class ActivationIT {
         send(mvc, post("/api/rules/" + id + "/activate").session(session), "")
                 .andExpect(status().isConflict());
         assertThat(occurrences.countByRuleId(id)).isZero();
+    }
+
+    /** Un autre utilisateur, qui ne doit pas voir les relances ci-dessus. */
+    private String user2() {
+        user("curieux@test.local");
+        return "curieux@test.local";
     }
 
     private long rule(long owner, String id, SchedulingRule schedule, boolean validation, RuleStatus status) {

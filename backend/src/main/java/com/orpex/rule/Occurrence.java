@@ -110,6 +110,10 @@ public class Occurrence {
         return validatedBy;
     }
 
+    public Instant getValidatedAt() {
+        return validatedAt;
+    }
+
     public Instant getSentAt() {
         return sentAt;
     }
