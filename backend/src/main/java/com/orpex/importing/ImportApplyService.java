@@ -64,7 +64,8 @@ public class ImportApplyService {
             switch (row.action()) {
                 case CREATE -> {
                     rules.save(Rule.fromImport(analysis.rules().get(row.rowNumber()),
-                            analysis.hashes().get(row.rowNumber()), ownerId, now));
+                            analysis.hashes().get(row.rowNumber()), analysis.variables().get(row.rowNumber()),
+                            ownerId, now));
                     created++;
                 }
                 case UNCHANGED -> unchanged++;

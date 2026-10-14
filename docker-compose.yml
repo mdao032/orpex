@@ -17,7 +17,7 @@ services:
       retries: 10
 
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.31.5
     ports:
       - "1025:1025"   # SMTP : l'application envoie ici en développement
       - "8025:8025"   # Interface web : http://localhost:8025

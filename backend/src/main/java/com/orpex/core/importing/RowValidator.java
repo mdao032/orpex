@@ -3,6 +3,7 @@ package com.orpex.core.importing;
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.calendar.SendMode;
+import com.orpex.core.mail.MessageTemplate;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -25,7 +26,6 @@ public final class RowValidator {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     private static final Pattern TIME_PATTERN = Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([a-z0-9_]+)\\s*}}");
 
     private final BusinessCalendar calendar;
 
@@ -147,7 +147,7 @@ public final class RowValidator {
     }
 
     private static void checkVariables(String column, String text, Map<String, String> cells, List<String> errors) {
-        Matcher matcher = VARIABLE_PATTERN.matcher(text);
+        Matcher matcher = MessageTemplate.VARIABLE.matcher(text);
         while (matcher.find()) {
             String name = matcher.group(1);
             if (value(cells, name).isEmpty()) {

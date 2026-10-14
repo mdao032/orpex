@@ -10,6 +10,7 @@ import com.orpex.core.importing.FileValidator;
 import com.orpex.core.importing.ImportedRule;
 import com.orpex.core.importing.RuleStatus;
 import com.orpex.core.importing.XlsxReader;
+import com.orpex.core.mail.MessageTemplate;
 import com.orpex.holiday.HolidayService;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
@@ -70,7 +71,8 @@ public class ImportPreviewService {
     }
 
     /** Aperçu, et pour chaque ligne valide (par numéro de ligne) la règle typée et son empreinte : de quoi appliquer. */
-    record Analysis(ImportPreview preview, Map<Integer, ImportedRule> rules, Map<Integer, String> hashes) {
+    record Analysis(ImportPreview preview, Map<Integer, ImportedRule> rules, Map<Integer, String> hashes,
+                    Map<Integer, Map<String, String>> variables) {
     }
 
     private final HolidayService holidayService;
@@ -101,7 +103,7 @@ public class ImportPreviewService {
         FileValidator.FileResult result = new FileValidator(calendar).validate(sheet, today);
         if (result.isRejected()) {
             return new Analysis(new ImportPreview(fileName, result.missingColumns(), new Counts(0, 0, 0, 0, 0, 0),
-                    List.of()), Map.of(), Map.of());
+                    List.of()), Map.of(), Map.of(), Map.of());
         }
 
         Map<Integer, Map<String, String>> cellsByRow = sheet.rows().stream()
@@ -114,6 +116,7 @@ public class ImportPreviewService {
 
         Map<Integer, ImportedRule> validRules = new HashMap<>();
         Map<Integer, String> hashes = new HashMap<>();
+        Map<Integer, Map<String, String>> variables = new HashMap<>();
         List<RowPreview> rows = result.rows().stream().map(row -> {
             if (!row.isValid()) {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.REJECTED, row.errors(),
@@ -122,6 +125,8 @@ public class ImportPreviewService {
             String hash = ConfigHash.of(cellsByRow.get(row.rowNumber()));
             validRules.put(row.rowNumber(), row.rule());
             hashes.put(row.rowNumber(), hash);
+            variables.put(row.rowNumber(), MessageTemplate.valuesUsed(cellsByRow.get(row.rowNumber()),
+                    row.rule().subject(), row.rule().body()));
             Rule current = existing.get(row.businessId());
             Action action = current == null ? Action.CREATE
                     : current.getConfigHash().equals(hash) ? Action.UNCHANGED : Action.UPDATE;
@@ -129,7 +134,7 @@ public class ImportPreviewService {
                     Interpreted.of(row.rule()), sends(calculator, row.rule()));
         }).toList();
 
-        return new Analysis(new ImportPreview(fileName, List.of(), count(rows), rows), validRules, hashes);
+        return new Analysis(new ImportPreview(fileName, List.of(), count(rows), rows), validRules, hashes, variables);
     }
 
     private Sends sends(ScheduleCalculator calculator, ImportedRule rule) {

@@ -5,6 +5,7 @@ import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.ImportedRule;
 import com.orpex.core.importing.RuleStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -15,6 +16,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -104,6 +107,11 @@ public class Rule {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** Valeurs des variables du message relevées à l'import, y compris des colonnes libres (ex. {{montant}}). */
+    @Convert(converter = StringMapJsonConverter.class)
+    @Column(nullable = false, columnDefinition = "text")
+    private Map<String, String> variables = new LinkedHashMap<>();
+
     /** Activation par l'utilisateur (bouton) : avant, aucun envoi n'existe pour cette ligne. */
     @Column(name = "activated_at")
     private Instant activatedAt;
@@ -114,13 +122,41 @@ public class Rule {
 
     /** Nouvelle ligne issue d'un import : en V1, le propriétaire est celui qui importe. */
     public static Rule fromImport(ImportedRule imported, String configHash, long ownerId, Instant now) {
+        return fromImport(imported, configHash, Map.of(), ownerId, now);
+    }
+
+    /** {@code variables} : valeurs des variables utilisées dans l'objet et le contenu, relevées dans la ligne. */
+    public static Rule fromImport(ImportedRule imported, String configHash, Map<String, String> variables,
+            long ownerId, Instant now) {
         Rule rule = new Rule();
         rule.ownerId = ownerId;
         rule.businessId = imported.businessId();
         rule.createdBy = ownerId;
         rule.createdAt = now;
         rule.apply(imported, configHash, now);
+        rule.variables = new LinkedHashMap<>(variables);
         return rule;
+    }
+
+    /**
+     * Valeurs pour remplacer les variables du message : celles relevées à l'import, complétées par les champs de la
+     * ligne (colonnes standard), utiles pour une ligne importée avant l'enregistrement des valeurs.
+     */
+    public Map<String, String> variableValues() {
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("id", businessId);
+        values.put("email", recipientEmail);
+        putIfPresent(values, "prenom", firstName);
+        putIfPresent(values, "nom", lastName);
+        putIfPresent(values, "reference_dossier", caseReference);
+        values.putAll(variables);
+        return values;
+    }
+
+    private static void putIfPresent(Map<String, String> values, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            values.put(name, value);
+        }
     }
 
     /** Remplace toute la configuration par celle du fichier ; l'état des envois n'est pas touché. */

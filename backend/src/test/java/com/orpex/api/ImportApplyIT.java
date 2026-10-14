@@ -146,6 +146,24 @@ class ImportApplyIT {
         return "spectateur@test.local";
     }
 
+    @Test
+    void theValuesOfTheVariablesAreKeptIncludingAFreeColumn() throws Exception {
+        long owner = user("variables@test.local");
+        MockHttpSession session = login(mvc, "variables@test.local", PASSWORD);
+        List<String> headers = new java.util.ArrayList<>(ALL_COLUMNS);
+        headers.add("montant");
+        Map<String, String> row = periodRow("V-1", "a@exemple.ml", "2027-05-03", "2027-05-07");
+        row.put("contenu", "Bonjour {{prenom}}, il reste {{montant}} FCFA à régler.");
+        row.put("montant", "125 000");
+
+        apply(session, "variables.xlsx", xlsx(headers, row)).andExpect(jsonPath("$.created").value(1));
+
+        var values = rules.findByOwnerIdAndBusinessId(owner, "V-1").orElseThrow().variableValues();
+        assertThat(values).containsEntry("prenom", "Awa").containsEntry("montant", "125 000");
+        assertThat(com.orpex.core.mail.MessageTemplate.render("Bonjour {{prenom}}, il reste {{montant}} FCFA à régler.",
+                values)).isEqualTo("Bonjour Awa, il reste 125 000 FCFA à régler.");
+    }
+
     private long user(String email) {
         return accounts.findByEmail(email)
                 .orElseGet(() -> accounts.save(new UserAccount(email, passwordEncoder.encode(PASSWORD), Role.USER)))
