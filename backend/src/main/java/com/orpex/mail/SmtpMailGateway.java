@@ -1,6 +1,5 @@
 package com.orpex.mail;
 
-import com.orpex.config.OrpexProperties;
 import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
@@ -9,16 +8,18 @@ import jakarta.mail.SendFailedException;
 import jakarta.mail.internet.MimeMessage;
 import java.io.UnsupportedEncodingException;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 /**
- * Envoi par SMTP (relais de la banque ; Mailpit en développement), réglé par {@code spring.mail.*}.
+ * Envoi par SMTP (relais de la banque ; Mailpit en développement), avec la connexion en vigueur : celle de l'écran
+ * d'administration, sinon {@code spring.mail.*} ({@link MailSenderProvider}).
  *
  * <p>Classement des erreurs pour les nouvelles tentatives : code SMTP 4xx ou serveur injoignable → temporaire ;
  * code 5xx, adresse refusée ou authentification refusée → définitif.
@@ -30,20 +31,29 @@ public class SmtpMailGateway implements MailGateway {
     private static final Pattern SMTP_CODE = Pattern.compile("^\\s*([245]\\d\\d)[\\s-]");
     private static final int MAX_DETAIL = 300;
 
-    private final JavaMailSender sender;
-    private final OrpexProperties.Mail settings;
+    private final Supplier<MailSenderProvider.Current> connections;
 
-    public SmtpMailGateway(JavaMailSender sender, OrpexProperties properties) {
-        this.sender = sender;
-        this.settings = properties.mail();
+    @Autowired
+    public SmtpMailGateway(MailSenderProvider provider) {
+        this(provider::current);
+    }
+
+    SmtpMailGateway(Supplier<MailSenderProvider.Current> connections) {
+        this.connections = connections;
     }
 
     @Override
     public void send(MailMessage message) throws MailSendException {
-        MimeMessage mime = sender.createMimeMessage();
+        MailSenderProvider.Current connection;
+        try {
+            connection = connections.get();
+        } catch (RuntimeException e) {
+            throw new MailSendException("configuration SMTP inutilisable : " + e.getMessage(), false, e);
+        }
+        MimeMessage mime = connection.sender().createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(mime, false, "UTF-8");
-            helper.setFrom(message.from(), settings.fromName());
+            helper.setFrom(message.from(), connection.fromName());
             helper.setTo(message.to());
             helper.setSubject(message.subject());
             helper.setText(message.body(), false);
@@ -51,7 +61,7 @@ public class SmtpMailGateway implements MailGateway {
             throw new MailSendException("message impossible à construire : " + e.getMessage(), false, e);
         }
         try {
-            sender.send(mime);
+            connection.sender().send(mime);
         } catch (MailException e) {
             throw classify(e);
         }

@@ -5,6 +5,7 @@ import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
 import com.orpex.core.mail.MessageTemplate;
+import com.orpex.mail.MailSenderProvider;
 import com.orpex.rule.Occurrence;
 import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
@@ -56,16 +57,19 @@ public class SendWorker {
     private final RuleRepository rules;
     private final SendingControlService sendingControl;
     private final MailGateway gateway;
+    private final MailSenderProvider senders;
     private final TransactionTemplate transaction;
     private final OrpexProperties properties;
     private final Clock clock;
 
     public SendWorker(OccurrenceRepository occurrences, RuleRepository rules, SendingControlService sendingControl,
-            MailGateway gateway, TransactionTemplate transaction, OrpexProperties properties, Clock clock) {
+            MailGateway gateway, MailSenderProvider senders, TransactionTemplate transaction,
+            OrpexProperties properties, Clock clock) {
         this.occurrences = occurrences;
         this.rules = rules;
         this.sendingControl = sendingControl;
         this.gateway = gateway;
+        this.senders = senders;
         this.transaction = transaction;
         this.properties = properties;
         this.clock = clock;
@@ -129,7 +133,7 @@ public class SendWorker {
         String error;
         try {
             Map<String, String> values = rule.variableValues();
-            gateway.send(new MailMessage(properties.mail().from(), rule.getRecipientEmail(),
+            gateway.send(new MailMessage(senders.current().from(), rule.getRecipientEmail(),
                     MessageTemplate.render(rule.getSubject(), values), MessageTemplate.render(rule.getBody(), values)));
             record(reserved.getId(), occurrence -> occurrence.markSent(clock.instant()));
             log.info("Envoi {} parti : relance {} (id {}) du {}", reserved.getId(), rule.getBusinessId(),

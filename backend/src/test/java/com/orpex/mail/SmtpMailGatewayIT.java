@@ -3,7 +3,6 @@ package com.orpex.mail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.orpex.config.OrpexProperties;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
 import java.net.URI;
@@ -29,8 +28,6 @@ class SmtpMailGatewayIT {
             .withEnv("MP_SMTP_DISABLE_RDNS", "true")
             .waitingFor(Wait.forHttp("/livez").forPort(8025));
 
-    private static final OrpexProperties PROPERTIES = new OrpexProperties("Africa/Bamako", 30, null, null, null,
-            new OrpexProperties.Mail("relances@banque.ml", "ORPEX - Relances"), null);
 
     @BeforeAll
     static void start() {
@@ -83,7 +80,7 @@ class SmtpMailGatewayIT {
         sender.getJavaMailProperties().put("mail.smtp.connectiontimeout", "3000");
         sender.getJavaMailProperties().put("mail.smtp.timeout", "3000");
         sender.getJavaMailProperties().put("mail.smtp.localhost", "orpex.local");
-        return new SmtpMailGateway(sender, PROPERTIES);
+        return new SmtpMailGateway(() -> new MailSenderProvider.Current(sender, "relances@banque.ml", "ORPEX - Relances"));
     }
 
     private static JsonNode mailpit(String path) throws Exception {

@@ -55,6 +55,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
   variables (colonnes libres comprises) sont relevées à l'import (`rules.variables`, JSON).
+  Relais configuré à l'écran (`SmtpSettingsService`, `/api/admin/smtp`, table `smtp_settings`) : prioritaire sur
+  `spring.mail.*` via `MailSenderProvider` ; mot de passe chiffré AES-256-GCM (`SecretCipher`), clé `ORPEX_SECRET_KEY`
+  (jamais en base, clé de dev dans `application-dev.properties`), jamais renvoyé ni journalisé ; certificat d'autorité
+  interne (PEM) ajouté aux autorités de confiance, vérification du nom du serveur.
 - `backend/.../account/` : comptes (table `users`, email normalisé en minuscules), connexion par
   `DatabaseUserDetailsService`, premier administrateur créé depuis `orpex.bootstrap-admin.*` si la table est vide.
   Mots de passe en Argon2id ; un ancien hachage bcrypt est converti à la connexion réussie suivante.
@@ -100,6 +104,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - Heure : bean `Clock` dans le fuseau `orpex.timezone` (défaut `Africa/Bamako`, invalide = démarrage refusé). Calculer
   « aujourd'hui » et les heures d'envoi avec ce `Clock`, jamais avec le fuseau du serveur.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
+- **Jackson 3** refuse par défaut un champ primitif (`int`, `boolean`) absent du JSON : dans les records de requête,
+  utiliser `Integer`/`Boolean` pour les champs facultatifs.
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
 - `backend/src/main/resources/db/migration/` : Flyway. **Ne jamais modifier `V1__init.sql`** : ajouter `V2__...`.

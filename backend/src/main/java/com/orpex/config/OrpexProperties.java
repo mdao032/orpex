@@ -14,10 +14,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param password                règles des mots de passe choisis par les utilisateurs
  * @param mail                    expéditeur des relances
  * @param worker                  worker d'envoi
+ * @param secretKey               clé de chiffrement des secrets au repos (Base64, 32 octets), jamais en base
  */
 @ConfigurationProperties(prefix = "orpex")
 public record OrpexProperties(String timezone, int validationCutoffMinutes, BootstrapAdmin bootstrapAdmin,
-        Login login, Password password, Mail mail, Worker worker) {
+        Login login, Password password, Mail mail, Worker worker, String secretKey) {
 
     public record BootstrapAdmin(String email, String password) {
 
