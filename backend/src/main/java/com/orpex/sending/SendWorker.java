@@ -71,8 +71,27 @@ public class SendWorker {
         this.clock = clock;
     }
 
+    static final String INTERRUPTED = "envoi interrompu (arrêt de l'application) : vérifiez s'il est parti avant de "
+            + "décider ; il ne sera jamais renvoyé automatiquement";
+
+    /**
+     * Envois restés « en cours » au-delà de {@code orpex.worker.sending-timeout} : à vérifier par l'utilisateur.
+     * Appelé au démarrage et à chaque passage (ce qui couvre aussi l'arrêt d'une autre instance).
+     */
+    public int recoverInterruptedSends() {
+        Instant now = clock.instant();
+        Integer marked = transaction.execute(status -> occurrences.markInterruptedAsToCheck(
+                now.minus(properties.worker().sendingTimeout()), now, INTERRUPTED, OccurrenceState.SENDING,
+                OccurrenceState.TO_CHECK));
+        if (marked != null && marked > 0) {
+            log.warn("{} envoi(s) interrompu(s) par un arrêt pendant l'envoi : marqués à vérifier", marked);
+        }
+        return marked == null ? 0 : marked;
+    }
+
     /** Un passage : traite au plus un lot d'envois dus. */
     public Pass processDueSends() {
+        recoverInterruptedSends();
         if (sendingControl.globalState().paused()) {
             return new Pass(0, 0, 0, 0);
         }

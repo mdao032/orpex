@@ -53,8 +53,10 @@ public record OrpexProperties(String timezone, int validationCutoffMinutes, Boot
      * @param batchSize   envois réservés au plus par passage
      * @param maxLateness retard au-delà duquel un envoi dû n'est plus fait : il est manqué (arrêt du service…)
      * @param retryDelays délais des nouvelles tentatives après un échec temporaire, une par délai
+     * @param sendingTimeout durée au-delà de laquelle un envoi resté « en cours » est à vérifier (arrêt pendant
+     *                       l'envoi)
      */
     public record Worker(boolean enabled, Duration delay, int batchSize, Duration maxLateness,
-                         List<Duration> retryDelays) {
+                         List<Duration> retryDelays, Duration sendingTimeout) {
     }
 }

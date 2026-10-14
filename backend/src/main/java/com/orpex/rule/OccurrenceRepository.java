@@ -44,6 +44,18 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     List<Long> lockDue(@Param("now") Instant now, @Param("oldest") Instant oldest, @Param("limit") int limit);
 
     /**
+     * Envois restés « en cours » au-delà du délai d'envoi : l'application s'est arrêtée pendant l'envoi, on ne sait
+     * pas si le serveur l'a accepté. Ils passent « à vérifier » et ne seront jamais renvoyés automatiquement.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update Occurrence o set o.state = :toCheck, o.lastError = :reason, o.updatedAt = :now
+            where o.state = :sending and o.updatedAt < :before""")
+    int markInterruptedAsToCheck(@Param("before") Instant before, @Param("now") Instant now,
+            @Param("reason") String reason, @Param("sending") OccurrenceState sending,
+            @Param("toCheck") OccurrenceState toCheck);
+
+    /**
      * Worker : envois prévus ou validés dont l'heure est dépassée de trop pour partir encore (arrêt du service). Un
      * envoi en cours de nouvelles tentatives n'est pas concerné : ses tentatives sont espacées volontairement.
      */

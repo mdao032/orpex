@@ -16,6 +16,7 @@ import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendingControlService;
+import com.orpex.rule.ToCheckService;
 import com.orpex.rule.SendingControlService.RulePauseResult;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -76,16 +78,30 @@ public class RuleController {
     private final ActivationService activationService;
     private final ClosureService closureService;
     private final SendingControlService sendingControl;
+    private final ToCheckService toCheck;
     private final CurrentUser currentUser;
 
     public RuleController(RuleRepository rules, OccurrenceRepository occurrences, ActivationService activationService,
-            ClosureService closureService, SendingControlService sendingControl, CurrentUser currentUser) {
+            ClosureService closureService, SendingControlService sendingControl, ToCheckService toCheck,
+            CurrentUser currentUser) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.activationService = activationService;
         this.closureService = closureService;
         this.sendingControl = sendingControl;
+        this.toCheck = toCheck;
         this.currentUser = currentUser;
+    }
+
+    public record ResolveRequest(boolean sent) {
+    }
+
+    /** Envoi « à vérifier » : l'utilisateur déclare s'il est parti ; jamais de renvoi automatique. */
+    @PostMapping("/{id}/sends/{sendId}/resolve")
+    public OccurrenceView resolve(@PathVariable long id, @PathVariable long sendId,
+            @RequestBody ResolveRequest request,
+            Authentication authentication) {
+        return OccurrenceView.of(toCheck.resolve(currentUser.id(authentication), id, sendId, request.sent()));
     }
 
     /** Suspend les envois de la relance, sans les supprimer. */

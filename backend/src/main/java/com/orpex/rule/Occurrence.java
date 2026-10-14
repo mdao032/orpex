@@ -124,6 +124,20 @@ public class Occurrence {
     }
 
     /**
+     * Décision de l'utilisateur sur un envoi « à vérifier » (arrêt pendant l'envoi) : parti ou non. Jamais de renvoi :
+     * un envoi non parti passe en échec.
+     */
+    public void resolveToCheck(boolean sent, Instant now) {
+        if (state != OccurrenceState.TO_CHECK) {
+            throw new IllegalStateException("Envoi " + id + " : pas à vérifier (état " + state + ")");
+        }
+        this.state = sent ? OccurrenceState.SENT : OccurrenceState.FAILED;
+        this.lastError = sent ? "parti (confirmé par l'utilisateur après vérification)"
+                : "non parti (confirmé par l'utilisateur après vérification)";
+        this.updatedAt = now;
+    }
+
+    /**
      * Échec temporaire : l'envoi reprend son état d'attente ({@code PLANNED}, ou {@code VALIDATED} s'il avait été
      * validé) et repartira à {@code nextAttempt}.
      */
