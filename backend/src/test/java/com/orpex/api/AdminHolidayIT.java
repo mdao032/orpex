@@ -73,7 +73,7 @@ class AdminHolidayIT {
                 .andExpect(jsonPath("$[?(@.day == '2027-01-01')].label").value("Jour de l'an"))
                 .andExpect(jsonPath("$[?(@.day == '2027-07-14')]").exists());
 
-        send(mvc, delete("/api/admin/holidays/2027-07-14").session(admin), "").andExpect(status().isNoContent());
+        send(mvc, delete("/api/admin/holidays/2027-07-14").session(admin), "").andExpect(status().isOk());
         mvc.perform(get("/api/admin/holidays").session(admin))
                 .andExpect(jsonPath("$[?(@.day == '2027-07-14')]").doesNotExist());
     }

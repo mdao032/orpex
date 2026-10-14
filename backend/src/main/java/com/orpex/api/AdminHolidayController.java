@@ -3,6 +3,7 @@ package com.orpex.api;
 import com.orpex.core.calendar.NationalHolidays;
 import com.orpex.holiday.Holiday;
 import com.orpex.holiday.HolidayService;
+import com.orpex.rule.RescheduleService.Rescheduled;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -34,7 +35,12 @@ public class AdminHolidayController {
     }
 
     /** {@code manualDays} : fêtes légales non calculées, à saisir à la main une fois leur date annoncée. */
-    public record YearAddedView(List<HolidayView> added, int alreadyPresent, List<String> manualDays) {
+    /** {@code rescheduled} : envois futurs annulés ou ajoutés par le recalcul qui suit le changement. */
+    public record YearAddedView(List<HolidayView> added, int alreadyPresent, List<String> manualDays,
+                                Rescheduled rescheduled) {
+    }
+
+    public record AddedView(LocalDate day, String label, Rescheduled rescheduled) {
     }
 
     public record CountryView(NationalHolidays.Country code, String label, List<String> manualDays) {
@@ -56,8 +62,9 @@ public class AdminHolidayController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public HolidayView add(@Valid @RequestBody AddHolidayRequest request) {
-        return HolidayView.of(holidayService.add(request.day(), request.label()));
+    public AddedView add(@Valid @RequestBody AddHolidayRequest request) {
+        HolidayService.Added added = holidayService.add(request.day(), request.label());
+        return new AddedView(added.holiday().getDay(), added.holiday().getLabel(), added.rescheduled());
     }
 
     /** Pays dont les jours fériés peuvent être ajoutés automatiquement. */
@@ -73,12 +80,12 @@ public class AdminHolidayController {
     public YearAddedView addNationalHolidays(@PathVariable NationalHolidays.Country country, @PathVariable int year) {
         HolidayService.YearAdded result = holidayService.addNationalHolidays(country, year);
         return new YearAddedView(result.added().stream().map(HolidayView::of).toList(), result.alreadyPresent(),
-                country.manualDays());
+                country.manualDays(), result.rescheduled());
     }
 
+    /** Retire le jour férié et renvoie le recalcul des envois futurs. */
     @DeleteMapping("/{day}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remove(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate day) {
-        holidayService.remove(day);
+    public Rescheduled remove(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate day) {
+        return holidayService.remove(day);
     }
 }

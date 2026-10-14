@@ -2,6 +2,8 @@ package com.orpex.holiday;
 
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.core.calendar.NationalHolidays;
+import com.orpex.rule.RescheduleService;
+import com.orpex.rule.RescheduleService.Rescheduled;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -21,9 +23,15 @@ public class HolidayService {
     private static final DateTimeFormatter DISPLAY = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final HolidayRepository holidays;
+    private final RescheduleService rescheduler;
 
-    public HolidayService(HolidayRepository holidays) {
+    public HolidayService(HolidayRepository holidays, RescheduleService rescheduler) {
         this.holidays = holidays;
+        this.rescheduler = rescheduler;
+    }
+
+    /** Jour férié ajouté, et envois futurs recalculés en conséquence (décision Q10). */
+    public record Added(Holiday holiday, Rescheduled rescheduled) {
     }
 
     /**
@@ -41,23 +49,29 @@ public class HolidayService {
     }
 
     @Transactional
-    public Holiday add(LocalDate day, String label) {
+    public Added add(LocalDate day, String label) {
         if (holidays.existsById(day)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Le " + DISPLAY.format(day) + " est déjà un jour férié.");
         }
-        return holidays.save(new Holiday(day, label));
+        Holiday added = holidays.save(new Holiday(day, label));
+        return new Added(added, reschedule("ajout du jour férié " + DISPLAY.format(day)));
     }
 
+    /** Retire le jour férié ; les envois futurs sont recalculés (le jour redevient un jour d'envoi). */
     @Transactional
-    public void remove(LocalDate day) {
+    public Rescheduled remove(LocalDate day) {
         if (!holidays.existsById(day)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Le " + DISPLAY.format(day) + " n'est pas un jour férié.");
         }
         holidays.deleteById(day);
+        return reschedule("retrait du jour férié " + DISPLAY.format(day));
     }
 
-    /** Résultat de l'ajout des jours fériés d'une année : ceux ajoutés, et le nombre de dates déjà présentes. */
-    public record YearAdded(List<Holiday> added, int alreadyPresent) {
+    /**
+     * Résultat de l'ajout des jours fériés d'une année : ceux ajoutés, le nombre de dates déjà présentes, et les
+     * envois recalculés.
+     */
+    public record YearAdded(List<Holiday> added, int alreadyPresent, Rescheduled rescheduled) {
     }
 
     /**
@@ -78,6 +92,13 @@ public class HolidayService {
                 added.add(holidays.save(new Holiday(entry.getKey(), entry.getValue())));
             }
         }
-        return new YearAdded(added, alreadyPresent);
+        Rescheduled rescheduled = added.isEmpty() ? new Rescheduled(0, 0, 0)
+                : reschedule("jours fériés " + country.label() + " " + year);
+        return new YearAdded(added, alreadyPresent, rescheduled);
+    }
+
+    private Rescheduled reschedule(String reason) {
+        holidays.flush();
+        return rescheduler.afterHolidayChange(businessCalendar(), reason);
     }
 }

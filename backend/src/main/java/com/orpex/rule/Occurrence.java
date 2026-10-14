@@ -82,6 +82,18 @@ public class Occurrence {
         this.updatedAt = now;
     }
 
+    /**
+     * Le jour redevient un jour d'envoi (jour férié retiré) : un envoi annulé reprend, puisqu'un envoi ne peut exister
+     * qu'une fois par ligne et par jour.
+     */
+    public void revive(OccurrenceState upcoming, Instant now) {
+        if (state != OccurrenceState.CANCELLED) {
+            throw new IllegalStateException("Seul un envoi annulé peut reprendre (état : " + state + ")");
+        }
+        this.state = upcoming;
+        this.updatedAt = now;
+    }
+
     public Long getId() {
         return id;
     }
