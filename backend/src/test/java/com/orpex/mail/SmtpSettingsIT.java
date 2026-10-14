@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +16,12 @@ import com.orpex.TestcontainersConfiguration;
 import com.orpex.account.Role;
 import com.orpex.account.UserAccount;
 import com.orpex.account.UserAccountRepository;
+import com.orpex.rule.OccurrenceRepository;
+import com.orpex.rule.Rule;
+import com.orpex.rule.RuleRepository;
+import com.orpex.core.calendar.SchedulingRule;
+import com.orpex.core.importing.ImportedRule;
+import com.orpex.core.importing.RuleStatus;
 import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
@@ -23,6 +30,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,6 +96,12 @@ class SmtpSettingsIT {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    RuleRepository rules;
+
+    @Autowired
+    OccurrenceRepository occurrences;
+
     private MockHttpSession admin;
 
     @BeforeEach
@@ -142,6 +159,59 @@ class SmtpSettingsIT {
         account("smtp-user@test.local", Role.USER);
         mvc.perform(get("/api/admin/smtp").session(login(mvc, "smtp-user@test.local", PASSWORD)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void testMailHealthCheckAndSendToMyself() throws Exception {
+        saveRelay(RELAY_PASSWORD);
+
+        send(mvc, post("/api/admin/smtp/test").session(admin), "")
+                .andExpect(jsonPath("$.success").value(true));
+        var testMail = latestMail();
+        assertThat(testMail.get("Subject").asString()).isEqualTo("ORPEX : message de test");
+        assertThat(testMail.get("To").get(0).get("Address").asString()).isEqualTo("smtp-admin@test.local");
+
+        send(mvc, post("/api/admin/smtp/health").session(admin), "").andExpect(jsonPath("$.success").value(true));
+        mvc.perform(get("/api/admin/smtp").session(admin))
+                .andExpect(jsonPath("$.health.status").value("OK"))
+                .andExpect(jsonPath("$.health.checkedAt").exists());
+
+        long ownerId = accounts.findByEmail("smtp-admin@test.local").orElseThrow().getId();
+        ImportedRule imported = new ImportedRule("TEST-1", "dest@exemple.ml", "Awa", null, "FAC-9",
+                "Relance {{reference_dossier}}", "Bonjour {{prenom}}, il reste {{montant}} FCFA.",
+                SchedulingRule.once(LocalDate.parse("2027-12-06"), false), LocalTime.of(9, 0), false,
+                RuleStatus.ACTIVE);
+        long ruleId = rules.save(Rule.fromImport(imported, "a".repeat(64), Map.of("montant", "125 000"), ownerId,
+                Instant.now())).getId();
+        send(mvc, post("/api/rules/" + ruleId + "/test-send").session(admin), "")
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.to").value("smtp-admin@test.local"));
+        var myCopy = latestMail();
+        assertThat(myCopy.get("Subject").asString()).isEqualTo("[Test] Relance FAC-9");
+        assertThat(myCopy.get("To").get(0).get("Address").asString()).isEqualTo("smtp-admin@test.local");
+        String body = JsonMapper.builder().build().readTree(mailpit("/api/v1/message/" + myCopy.get("ID").asString()))
+                .get("Text").asString();
+        assertThat(body).contains("ce message serait envoyé à dest@exemple.ml").contains("il reste 125 000 FCFA");
+        assertThat(occurrences.countByRuleId(ruleId)).as("aucun envoi planifié créé").isZero();
+
+        saveRelay("mauvais-mot-de-passe");
+        send(mvc, post("/api/admin/smtp/health").session(admin), "").andExpect(jsonPath("$.success").value(false));
+        mvc.perform(get("/api/admin/smtp").session(admin))
+                .andExpect(jsonPath("$.health.status").value("ERROR"))
+                .andExpect(jsonPath("$.health.detail").isNotEmpty());
+        send(mvc, post("/api/admin/smtp/test").session(admin), "")
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.detail").isNotEmpty());
+    }
+
+    private void saveRelay(String password) throws Exception {
+        save("{\"host\":\"" + RELAY.getHost() + "\",\"port\":" + RELAY.getMappedPort(1025) + ","
+                + "\"encryption\":\"NONE\",\"username\":\"relais\",\"password\":\"" + password + "\","
+                + "\"fromAddress\":\"relances@banque.ml\"}").andExpect(status().isOk());
+    }
+
+    private static tools.jackson.databind.JsonNode latestMail() throws Exception {
+        return JsonMapper.builder().build().readTree(mailpit("/api/v1/messages")).get("messages").get(0);
     }
 
     private org.springframework.test.web.servlet.ResultActions save(String json) throws Exception {

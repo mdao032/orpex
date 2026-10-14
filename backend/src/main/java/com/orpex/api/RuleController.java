@@ -17,6 +17,7 @@ import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendingControlService;
 import com.orpex.rule.ToCheckService;
+import com.orpex.sending.TestSendService;
 import com.orpex.rule.SendingControlService.RulePauseResult;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -79,18 +80,26 @@ public class RuleController {
     private final ClosureService closureService;
     private final SendingControlService sendingControl;
     private final ToCheckService toCheck;
+    private final TestSendService testSend;
     private final CurrentUser currentUser;
 
     public RuleController(RuleRepository rules, OccurrenceRepository occurrences, ActivationService activationService,
             ClosureService closureService, SendingControlService sendingControl, ToCheckService toCheck,
-            CurrentUser currentUser) {
+            TestSendService testSend, CurrentUser currentUser) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.activationService = activationService;
         this.closureService = closureService;
         this.sendingControl = sendingControl;
         this.toCheck = toCheck;
+        this.testSend = testSend;
         this.currentUser = currentUser;
+    }
+
+    /** Rendu exact de la relance envoyé à l'utilisateur connecté ; aucun envoi planifié n'est touché. */
+    @PostMapping("/{id}/test-send")
+    public TestSendService.Result sendToMyself(@PathVariable long id, Authentication authentication) {
+        return testSend.sendToMyself(currentUser.id(authentication), id, authentication.getName());
     }
 
     public record ResolveRequest(boolean sent) {

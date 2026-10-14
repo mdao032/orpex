@@ -27,7 +27,11 @@ public class SmtpSettingsService {
     /** Ce que l'écran affiche ; {@code configured} faux : la configuration du fichier est en vigueur. */
     public record View(boolean configured, String host, int port, SmtpSettings.Encryption encryption, String username,
                        boolean passwordSet, String fromAddress, String fromName, String caCertificate,
-                       boolean encryptionKeyAvailable) {
+                       boolean encryptionKeyAvailable, Health health) {
+    }
+
+    /** Dernier contrôle de santé du relais : {@code status} UNKNOWN (pas encore contrôlé), OK ou ERROR. */
+    public record Health(String status, Instant checkedAt, String detail) {
     }
 
     /**
@@ -61,9 +65,11 @@ public class SmtpSettingsService {
     public View view() {
         return repository.findById(SmtpSettings.SINGLE_ROW)
                 .map(s -> new View(true, s.getHost(), s.getPort(), s.getEncryption(), s.getUsername(), s.hasPassword(),
-                        s.getFromAddress(), s.getFromName(), s.getCaCertificate(), cipher.isAvailable()))
+                        s.getFromAddress(), s.getFromName(), s.getCaCertificate(), cipher.isAvailable(),
+                        new Health(s.getHealthStatus(), s.getHealthCheckedAt(), s.getHealthDetail())))
                 .orElseGet(() -> new View(false, fileHost, filePort, SmtpSettings.Encryption.NONE, null, false,
-                        properties.mail().from(), properties.mail().fromName(), null, cipher.isAvailable()));
+                        properties.mail().from(), properties.mail().fromName(), null, cipher.isAvailable(),
+                        new Health("UNKNOWN", null, null)));
     }
 
     @Transactional

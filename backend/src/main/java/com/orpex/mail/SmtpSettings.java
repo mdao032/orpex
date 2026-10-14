@@ -51,6 +51,9 @@ public class SmtpSettings {
     @Column(name = "health_checked_at")
     private Instant healthCheckedAt;
 
+    @Column(name = "health_detail", columnDefinition = "text")
+    private String healthDetail;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -72,6 +75,13 @@ public class SmtpSettings {
         this.fromName = fromName;
         this.caCertificate = caCertificate;
         this.updatedAt = now;
+    }
+
+    /** Résultat du dernier contrôle de santé ; ne change pas {@code updatedAt} (la connexion n'est pas reconstruite). */
+    void recordHealth(boolean ok, String detail, Instant now) {
+        this.healthStatus = ok ? "OK" : "ERROR";
+        this.healthDetail = ok ? null : detail;
+        this.healthCheckedAt = now;
     }
 
     void setPasswordEncrypted(byte[] passwordEncrypted) {
@@ -120,6 +130,10 @@ public class SmtpSettings {
 
     public Instant getHealthCheckedAt() {
         return healthCheckedAt;
+    }
+
+    public String getHealthDetail() {
+        return healthDetail;
     }
 
     public Instant getUpdatedAt() {
