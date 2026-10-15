@@ -1,5 +1,7 @@
 package com.orpex.mail;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.config.OrpexProperties;
 import com.orpex.crypto.SecretCipher;
 import java.security.cert.CertificateException;
@@ -49,16 +51,18 @@ public class SmtpSettingsService {
     private final Clock clock;
     private final String fileHost;
     private final int filePort;
+    private final AuditLog audit;
 
     public SmtpSettingsService(SmtpSettingsRepository repository, SecretCipher cipher, OrpexProperties properties,
             Clock clock, @Value("${spring.mail.host:localhost}") String fileHost,
-            @Value("${spring.mail.port:25}") int filePort) {
+            @Value("${spring.mail.port:25}") int filePort, AuditLog audit) {
         this.repository = repository;
         this.cipher = cipher;
         this.properties = properties;
         this.clock = clock;
         this.fileHost = fileHost;
         this.filePort = filePort;
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +110,7 @@ public class SmtpSettingsService {
 
         Instant now = clock.instant();
         SmtpSettings settings = repository.findById(SmtpSettings.SINGLE_ROW).orElseGet(SmtpSettings::create);
+        String before = settings.getHost() == null ? null : describe(settings);
         settings.update(host, change.port(), change.encryption(), username, from, trimmed(change.fromName()), ca, now);
         if (username == null || Boolean.TRUE.equals(change.removePassword())) {
             settings.setPasswordEncrypted(null);
@@ -113,11 +118,19 @@ public class SmtpSettingsService {
             settings.setPasswordEncrypted(cipher.encrypt(password));
         }
         repository.save(settings);
-        // Jamais le mot de passe dans les journaux (traçabilité complète : journal d'audit, phase 8).
+        // Jamais le mot de passe dans les journaux : seulement s'il y en a un.
+        audit.record(AuditEvent.SMTP_SETTINGS_CHANGED, null, "SMTP", null, before, describe(settings));
         log.info("Configuration SMTP modifiée par l'administrateur {} : {}:{} ({}), utilisateur {}, mot de passe {}",
                 adminId, host, change.port(), change.encryption(), username == null ? "aucun" : username,
                 settings.hasPassword() ? "enregistré" : "aucun");
         return view();
+    }
+
+    private static String describe(SmtpSettings s) {
+        return s.getHost() + ":" + s.getPort() + " (" + s.getEncryption() + "), utilisateur "
+                + (s.getUsername() == null ? "aucun" : s.getUsername()) + ", mot de passe "
+                + (s.hasPassword() ? "enregistré" : "aucun") + ", expéditeur " + s.getFromAddress()
+                + (s.getCaCertificate() == null ? "" : ", certificat d'autorité interne");
     }
 
     private static String trimmed(String value) {

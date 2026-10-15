@@ -1,5 +1,7 @@
 package com.orpex.validation;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.config.OrpexProperties;
 import com.orpex.rule.Occurrence;
 import com.orpex.rule.OccurrenceRepository;
@@ -59,13 +61,15 @@ public class ValidationService {
     private final RuleRepository rules;
     private final Clock clock;
     private final Duration cutoff;
+    private final AuditLog audit;
 
     public ValidationService(OccurrenceRepository occurrences, RuleRepository rules, OrpexProperties properties,
-            Clock clock) {
+            Clock clock, AuditLog audit) {
         this.occurrences = occurrences;
         this.rules = rules;
         this.clock = clock;
         this.cutoff = Duration.ofMinutes(properties.validationCutoffMinutes());
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +123,7 @@ public class ValidationService {
                 rejectedIds.add(rule.getBusinessId());
             }
         }
-        // Traçabilité (spécification §7) : qui, quand, ce qui a été décoché ; journal d'audit à la phase 8.
+        // Chaque décision est journalisée par la base (changement d'état, avec le validateur).
         log.info("Validation du jour par l'utilisateur {} : validées {}, décochées {}, refusées {}", ownerId,
                 validatedIds, rejectedIds, refused.size());
         return new Decision(validatedIds.size(), rejectedIds.size(), refused);
@@ -147,6 +151,8 @@ public class ValidationService {
         }
         String before = occurrence.getState() == OccurrenceState.VALIDATED ? "validé" : "décoché";
         occurrence.reopen(now);
+        audit.record(AuditEvent.SEND_DECISION_REOPENED, ownerId, "OCCURRENCE", sendId, before,
+                rule.getBusinessId() + " du " + occurrence.getScheduledDate() + " : de nouveau à valider");
         log.info("Validation du jour : l'utilisateur {} revient sur sa décision ({}) pour l'envoi {} de la relance {}",
                 ownerId, before, sendId, rule.getBusinessId());
         return today(ownerId).stream().filter(p -> p.sendId() == sendId).findFirst().orElseThrow();

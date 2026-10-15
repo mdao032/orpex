@@ -1,5 +1,7 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.importing.RuleStatus;
@@ -7,8 +9,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,19 +20,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RescheduleService {
 
-    private static final Logger log = LoggerFactory.getLogger(RescheduleService.class);
-
     public record Rescheduled(int rules, int cancelled, int added) {
     }
 
     private final RuleRepository rules;
     private final OccurrenceRepository occurrences;
     private final Clock clock;
+    private final AuditLog audit;
 
-    public RescheduleService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock) {
+    public RescheduleService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock, AuditLog audit) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.clock = clock;
+        this.audit = audit;
     }
 
     /** À appeler dans la transaction qui modifie les jours fériés, avec le calendrier qui en résulte. */
@@ -50,9 +50,8 @@ public class RescheduleService {
                 changedRules++;
                 cancelled += diff.cancelled();
                 added += diff.added();
-                // Traçabilité en attendant le journal d'audit (phase 8).
-                log.info("Recalcul ({}) de la relance {} (id {}, propriétaire {}) : {} envoi(s) annulé(s), {} ajouté(s)",
-                        reason, rule.getBusinessId(), rule.getId(), rule.getOwnerId(), diff.cancelled(), diff.added());
+                audit.record(AuditEvent.RULE_RESCHEDULED, rule.getOwnerId(), "RULE", rule.getBusinessId(), null,
+                        reason + " : " + diff.cancelled() + " envoi(s) annulé(s), " + diff.added() + " ajouté(s)");
             }
         }
         return new Rescheduled(changedRules, cancelled, added);

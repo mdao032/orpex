@@ -1,5 +1,7 @@
 package com.orpex.importing;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.importing.ImportPreviewService.AbsentRule;
@@ -9,7 +11,9 @@ import com.orpex.importing.ImportPreviewService.Update;
 import com.orpex.importing.ImportPreviewService.Analysis;
 import com.orpex.importing.ImportPreviewService.RowPreview;
 import com.orpex.holiday.HolidayService;
+import com.orpex.core.importing.RuleStatus;
 import com.orpex.rule.ClosureService;
+import com.orpex.rule.FieldChanges;
 import com.orpex.rule.ImportRecord;
 import com.orpex.rule.ImportRecordRepository;
 import com.orpex.rule.RescheduleService;
@@ -56,9 +60,10 @@ public class ImportApplyService {
     private final ClosureService closure;
     private final HolidayService holidayService;
     private final Clock clock;
+    private final AuditLog audit;
 
     public ImportApplyService(ImportPreviewService analyser, RuleRepository rules, ImportRecordRepository imports,
-            RescheduleService rescheduler, ClosureService closure, HolidayService holidayService, Clock clock) {
+            RescheduleService rescheduler, ClosureService closure, HolidayService holidayService, Clock clock, AuditLog audit) {
         this.analyser = analyser;
         this.rules = rules;
         this.imports = imports;
@@ -66,6 +71,7 @@ public class ImportApplyService {
         this.closure = closure;
         this.holidayService = holidayService;
         this.clock = clock;
+        this.audit = audit;
     }
 
     /** Choix pour un conflit : garder la valeur de l'application ou prendre celle du fichier. */
@@ -107,9 +113,12 @@ public class ImportApplyService {
         int moved = 0;
         int cancelled = 0;
         List<String> updatedIds = new ArrayList<>();
+        List<String> createdIds = new ArrayList<>();
+        List<String> rejectedRows = new ArrayList<>();
         for (RowPreview row : analysis.preview().rows()) {
             switch (row.action()) {
                 case CREATE -> {
+                    createdIds.add(row.id());
                     rules.save(Rule.fromImport(analysis.rules().get(row.rowNumber()),
                             analysis.hashes().get(row.rowNumber()), analysis.variables().get(row.rowNumber()),
                             ownerId, now));
@@ -131,20 +140,37 @@ public class ImportApplyService {
                     // Champs où l'application l'emporte : on retient la valeur du fichier écartée.
                     Map<String, String> stillEdited = new LinkedHashMap<>();
                     keepApp.forEach(field -> stillEdited.put(field, update.fileValues().getOrDefault(field, "")));
+                    String businessId = rule.getBusinessId();
+                    FieldChanges.between(rule, merged.rule(), FieldChanges.freeVariables(merged.values()))
+                            .forEach(change -> audit.record(AuditEvent.RULE_UPDATED, ownerId, "RULE", businessId,
+                                    FieldChanges.describe(change.field(), change.before()),
+                                    FieldChanges.describe(change.field(), change.after()) + " (import " + fileName
+                                            + ")"));
+                    boolean closing = rule.getStatus() == RuleStatus.ACTIVE
+                            && merged.rule().status() == RuleStatus.CLOSED;
                     rule.apply(merged.rule(), analysis.hashes().get(row.rowNumber()), stillEdited, now);
                     rule.replaceVariables(merged.values());
+                    int cancelledHere = 0;
                     if (rule.isActivated()) {
                         SendsDiff diff = rescheduler.diff(rule, calculator, now);
                         rescheduler.apply(rule, diff, now);
                         added += diff.added();
                         moved += diff.moved();
                         cancelled += diff.cancelled();
+                        cancelledHere = diff.cancelled();
+                    }
+                    if (closing) {
+                        audit.record(AuditEvent.RULE_CLOSED, ownerId, "RULE", businessId, null,
+                                cancelledHere + " envoi(s) annulé(s) (import " + fileName + ")");
                     }
                     updated++;
                     updatedIds.add(row.id());
                 }
                 case UNCHANGED -> unchanged++;
-                case REJECTED -> rejected++;
+                case REJECTED -> {
+                    rejected++;
+                    rejectedRows.add(row.rowNumber() + (row.id() == null || row.id().isBlank() ? "" : " (" + row.id() + ")"));
+                }
             }
         }
 
@@ -166,7 +192,10 @@ public class ImportApplyService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Un autre import des mêmes lignes a eu lieu entre-temps : relancez l'aperçu.", e);
         }
-        // Traçabilité (spécification §9) ; détail par champ : journal d'audit, phase 8.
+        audit.record(AuditEvent.IMPORT_APPLIED, ownerId, "IMPORT", record.getId(), null, "fichier « " + fileName
+                + " » : " + created + " créée(s) " + createdIds + ", " + updated + " modifiée(s) " + updatedIds + ", "
+                + unchanged + " inchangée(s), " + rejected + " rejetée(s) (lignes " + rejectedRows + "), "
+                + closedAbsent + " absente(s) close(s)");
         log.info("Import « {} » par l'utilisateur {} : {} créée(s), {} modifiée(s) {}, {} inchangée(s), {} rejetée(s), "
                 + "{} dossier(s) absent(s) clos ; envois : +{}, ~{}, -{}", fileName, ownerId, created, updated,
                 updatedIds, unchanged, rejected, closedAbsent, added, moved, cancelled);

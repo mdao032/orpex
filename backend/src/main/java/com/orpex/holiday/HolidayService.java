@@ -1,5 +1,7 @@
 package com.orpex.holiday;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.core.calendar.NationalHolidays;
 import com.orpex.rule.RescheduleService;
@@ -24,10 +26,12 @@ public class HolidayService {
 
     private final HolidayRepository holidays;
     private final RescheduleService rescheduler;
+    private final AuditLog audit;
 
-    public HolidayService(HolidayRepository holidays, RescheduleService rescheduler) {
+    public HolidayService(HolidayRepository holidays, RescheduleService rescheduler, AuditLog audit) {
         this.holidays = holidays;
         this.rescheduler = rescheduler;
+        this.audit = audit;
     }
 
     /** Jour férié ajouté, et envois futurs recalculés en conséquence (décision Q10). */
@@ -54,6 +58,7 @@ public class HolidayService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Le " + DISPLAY.format(day) + " est déjà un jour férié.");
         }
         Holiday added = holidays.save(new Holiday(day, label));
+        audit.record(AuditEvent.HOLIDAY_ADDED, null, "HOLIDAY", day, null, label);
         return new Added(added, reschedule("ajout du jour férié " + DISPLAY.format(day)));
     }
 
@@ -64,6 +69,7 @@ public class HolidayService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Le " + DISPLAY.format(day) + " n'est pas un jour férié.");
         }
         holidays.deleteById(day);
+        audit.record(AuditEvent.HOLIDAY_REMOVED, null, "HOLIDAY", day, null, null);
         return reschedule("retrait du jour férié " + DISPLAY.format(day));
     }
 
@@ -90,6 +96,7 @@ public class HolidayService {
                 alreadyPresent++;
             } else {
                 added.add(holidays.save(new Holiday(entry.getKey(), entry.getValue())));
+                audit.record(AuditEvent.HOLIDAY_ADDED, null, "HOLIDAY", entry.getKey(), null, entry.getValue());
             }
         }
         Rescheduled rescheduled = added.isEmpty() ? new Rescheduled(0, 0, 0)

@@ -1,8 +1,8 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import java.time.Clock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,16 +15,16 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class ToCheckService {
 
-    private static final Logger log = LoggerFactory.getLogger(ToCheckService.class);
-
     private final RuleRepository rules;
     private final OccurrenceRepository occurrences;
     private final Clock clock;
+    private final AuditLog audit;
 
-    public ToCheckService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock) {
+    public ToCheckService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock, AuditLog audit) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.clock = clock;
+        this.audit = audit;
     }
 
     @Transactional
@@ -38,9 +38,8 @@ public class ToCheckService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cet envoi n'est pas à vérifier.");
         }
         occurrence.resolveToCheck(sent, clock.instant());
-        // Traçabilité en attendant le journal d'audit (phase 8).
-        log.info("Envoi {} de la relance {} (id {}) déclaré {} par son propriétaire {}", occurrenceId,
-                rule.getBusinessId(), rule.getId(), sent ? "parti" : "non parti", ownerId);
+        audit.record(AuditEvent.SEND_RESOLVED, ownerId, "OCCURRENCE", occurrenceId, rule.getBusinessId(),
+                sent ? "déclaré parti" : "déclaré non parti");
         return occurrence;
     }
 }

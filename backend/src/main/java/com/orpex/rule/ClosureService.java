@@ -1,5 +1,7 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.importing.RuleStatus;
 import java.time.Clock;
 import java.time.Instant;
@@ -22,11 +24,13 @@ public class ClosureService {
     private final RuleRepository rules;
     private final OccurrenceRepository occurrences;
     private final Clock clock;
+    private final AuditLog audit;
 
-    public ClosureService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock) {
+    public ClosureService(RuleRepository rules, OccurrenceRepository occurrences, Clock clock, AuditLog audit) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.clock = clock;
+        this.audit = audit;
     }
 
     @Transactional
@@ -41,6 +45,8 @@ public class ClosureService {
         List<Occurrence> upcoming = occurrences.findAllByRuleIdAndStateIn(rule.getId(), OccurrenceState.NOT_STARTED);
         upcoming.forEach(occurrence -> occurrence.cancel(now));
         rule.close(now);
+        audit.record(AuditEvent.RULE_CLOSED, ownerId, "RULE", rule.getBusinessId(), null,
+                upcoming.size() + " envoi(s) annulé(s)");
         return new ClosureResult(rule.getId(), rule.getBusinessId(), upcoming.size());
     }
 }

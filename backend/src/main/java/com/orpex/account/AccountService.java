@@ -1,5 +1,7 @@
 package com.orpex.account;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.config.OrpexProperties;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -19,12 +21,14 @@ public class AccountService {
     private final UserAccountRepository accounts;
     private final PasswordEncoder passwordEncoder;
     private final OrpexProperties.Password passwordRules;
+    private final AuditLog audit;
 
     public AccountService(UserAccountRepository accounts, PasswordEncoder passwordEncoder,
-            OrpexProperties properties) {
+            OrpexProperties properties, AuditLog audit) {
         this.accounts = accounts;
         this.passwordEncoder = passwordEncoder;
         this.passwordRules = properties.password();
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -39,8 +43,10 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Un compte existe déjà avec l'adresse " + normalized + ".");
         }
         checkRules(temporaryPassword);
-        return accounts.save(
+        UserAccount created = accounts.save(
                 UserAccount.withTemporaryPassword(normalized, passwordEncoder.encode(temporaryPassword), role));
+        audit.record(AuditEvent.ACCOUNT_CREATED, null, "USER", normalized, null, role.name());
+        return created;
     }
 
     @Transactional
@@ -50,6 +56,7 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Vous ne pouvez pas désactiver votre propre compte.");
         }
         account.disable();
+        audit.record(AuditEvent.ACCOUNT_DISABLED, null, "USER", account.getEmail(), null, null);
         return account;
     }
 
@@ -57,6 +64,7 @@ public class AccountService {
     public UserAccount enable(long id) {
         UserAccount account = find(id);
         account.enable();
+        audit.record(AuditEvent.ACCOUNT_ENABLED, null, "USER", account.getEmail(), null, null);
         return account;
     }
 
@@ -67,7 +75,9 @@ public class AccountService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Vous ne pouvez pas retirer votre propre rôle d'administrateur.");
         }
+        Role before = account.getRole();
         account.changeRole(role);
+        audit.record(AuditEvent.ACCOUNT_ROLE_CHANGED, null, "USER", account.getEmail(), before.name(), role.name());
         return account;
     }
 
@@ -76,6 +86,8 @@ public class AccountService {
         checkRules(temporaryPassword);
         UserAccount account = find(id);
         account.resetPassword(passwordEncoder.encode(temporaryPassword));
+        audit.record(AuditEvent.ACCOUNT_PASSWORD_RESET, null, "USER", account.getEmail(), null,
+                "mot de passe provisoire");
         return account;
     }
 
@@ -93,6 +105,8 @@ public class AccountService {
         }
         checkRules(newPassword);
         account.changePassword(passwordEncoder.encode(newPassword));
+        audit.recordAs(account.getId(), AuditEvent.PASSWORD_CHANGED, account.getId(), "USER", account.getEmail(),
+                null, null);
     }
 
     private void checkRules(String password) {

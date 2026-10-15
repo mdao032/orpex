@@ -61,6 +61,11 @@ public final class FieldChanges {
         return changes;
     }
 
+    /** Valeur d'un champ pour le journal : « champ : valeur ». */
+    public static String describe(String field, String value) {
+        return field + " : " + (value == null ? "(vide)" : value);
+    }
+
     /** Valeurs des colonnes libres utilisées comme variables (les autres sont des champs de configuration). */
     public static Map<String, String> freeVariables(Map<String, String> values) {
         return values.entrySet().stream().filter(e -> !STANDARD_VARIABLES.contains(e.getKey()))

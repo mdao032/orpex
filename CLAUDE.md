@@ -128,6 +128,11 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   (`timezone` de `/api/me`), jamais celui du navigateur ; `DatePipe` seulement pour des dates sans heure (jours fériés).
 - Heure : bean `Clock` dans le fuseau `orpex.timezone` (défaut `Africa/Bamako`, invalide = démarrage refusé). Calculer
   « aujourd'hui » et les heures d'envoi avec ce `Clock`, jamais avec le fuseau du serveur.
+- `backend/.../audit/` : journal d'audit (`AuditLog`, table `audit_log`, ajout seul), écrit dans la transaction de
+  l'action ; auteur = utilisateur connecté (nul = système), `owner_id` = propriétaire des relances concernées, relances
+  désignées par leur `id` du fichier. Changements d'état des envois écrits par un trigger (V12, `SEND_STATE_CHANGED`,
+  détail en JSON). Jamais de mot de passe. **Toute nouvelle action qui modifie des données ou envoie un mail appelle
+  `AuditLog`.**
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - **Jackson 3** refuse par défaut un champ primitif (`int`, `boolean`) absent du JSON : dans les records de requête,
   utiliser `Integer`/`Boolean` pour les champs facultatifs.

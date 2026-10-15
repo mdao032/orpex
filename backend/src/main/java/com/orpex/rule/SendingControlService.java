@@ -1,5 +1,7 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.importing.RuleStatus;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,13 +28,15 @@ public class SendingControlService {
     private final RuleRepository rules;
     private final OccurrenceRepository occurrences;
     private final Clock clock;
+    private final AuditLog audit;
 
     public SendingControlService(SendingControlRepository control, RuleRepository rules,
-            OccurrenceRepository occurrences, Clock clock) {
+            OccurrenceRepository occurrences, Clock clock, AuditLog audit) {
         this.control = control;
         this.rules = rules;
         this.occurrences = occurrences;
         this.clock = clock;
+        this.audit = audit;
     }
 
     @Transactional(readOnly = true)
@@ -51,7 +55,11 @@ public class SendingControlService {
         }
         Instant now = clock.instant();
         state.change(paused, adminId, now);
-        return paused ? 0 : occurrences.markAllMissedBefore(now, OccurrenceState.NOT_STARTED, OccurrenceState.MISSED);
+        int missed = paused ? 0
+                : occurrences.markAllMissedBefore(now, OccurrenceState.NOT_STARTED, OccurrenceState.MISSED);
+        audit.record(paused ? AuditEvent.SENDING_PAUSED : AuditEvent.SENDING_RESUMED,
+                paused ? null : missed + " envoi(s) manqué(s) pendant la pause");
+        return missed;
     }
 
     @Transactional
@@ -70,6 +78,8 @@ public class SendingControlService {
         rule.pause(paused, now);
         int missed = paused ? 0
                 : occurrences.markMissedBefore(rule.getId(), now, OccurrenceState.NOT_STARTED, OccurrenceState.MISSED);
+        audit.record(paused ? AuditEvent.RULE_PAUSED : AuditEvent.RULE_RESUMED, ownerId, "RULE",
+                rule.getBusinessId(), null, paused ? null : missed + " envoi(s) manqué(s) pendant la pause");
         return new RulePauseResult(rule.getId(), rule.getBusinessId(), paused, missed);
     }
 }

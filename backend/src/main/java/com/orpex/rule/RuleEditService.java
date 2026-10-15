@@ -1,5 +1,7 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.Columns;
@@ -18,8 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class RuleEditService {
 
-    private static final Logger log = LoggerFactory.getLogger(RuleEditService.class);
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 
     /** Nouvelle configuration saisie ; l'identifiant, le statut et les colonnes libres ne se modifient pas ici. */
@@ -49,13 +48,15 @@ public class RuleEditService {
     private final RescheduleService rescheduler;
     private final HolidayService holidayService;
     private final Clock clock;
+    private final AuditLog audit;
 
     public RuleEditService(RuleRepository rules, RescheduleService rescheduler, HolidayService holidayService,
-            Clock clock) {
+            Clock clock, AuditLog audit) {
         this.rules = rules;
         this.rescheduler = rescheduler;
         this.holidayService = holidayService;
         this.clock = clock;
+        this.audit = audit;
     }
 
     /**
@@ -108,12 +109,12 @@ public class RuleEditService {
             moved = diff.moved();
             cancelled = diff.cancelled();
         }
-        // Traçabilité (spécification §11) en attendant le journal d'audit (phase 8).
-        changes.forEach(change -> log.info("Relance {} (id {}) modifiée à l'écran par l'utilisateur {} : {} « {} » → « {} »",
-                rule.getBusinessId(), rule.getId(), ownerId, change.field(), change.before(), change.after()));
+        changes.forEach(change -> audit.record(AuditEvent.RULE_UPDATED, ownerId, "RULE", rule.getBusinessId(),
+                FieldChanges.describe(change.field(), change.before()),
+                FieldChanges.describe(change.field(), change.after())));
         if (validationDropped) {
-            log.info("Relance {} (id {}) : passage de la validation quotidienne de oui à non confirmé par l'utilisateur {}",
-                    rule.getBusinessId(), rule.getId(), ownerId);
+            audit.record(AuditEvent.VALIDATION_DROPPED, ownerId, "RULE", rule.getBusinessId(), "oui",
+                    "non (confirmé à l'écran)");
         }
         return new EditResult(changes, added, moved, cancelled);
     }

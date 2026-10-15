@@ -1,5 +1,7 @@
 package com.orpex.mail;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
@@ -30,14 +32,16 @@ public class SmtpHealthService {
     private final SmtpSettingsRepository settings;
     private final TransactionTemplate transaction;
     private final Clock clock;
+    private final AuditLog audit;
 
     public SmtpHealthService(MailSenderProvider senders, MailGateway gateway, SmtpSettingsRepository settings,
-            TransactionTemplate transaction, Clock clock) {
+            TransactionTemplate transaction, Clock clock, AuditLog audit) {
         this.senders = senders;
         this.gateway = gateway;
         this.settings = settings;
         this.transaction = transaction;
         this.clock = clock;
+        this.audit = audit;
     }
 
     /** Envoie un mail de test à l'administrateur, avec la configuration en vigueur. */
@@ -46,6 +50,7 @@ public class SmtpHealthService {
             gateway.send(new MailMessage(senders.current().from(), adminEmail, "ORPEX : message de test",
                     "Bonjour,\n\nCe message confirme que l'application ORPEX peut envoyer des mails par le relais "
                             + "configuré.\n\nAucune action n'est nécessaire."));
+            audit.record(AuditEvent.SMTP_TEST_SENT, "envoyé à " + adminEmail);
             return new Result(true, null);
         } catch (MailSendException e) {
             return new Result(false, e.getMessage());

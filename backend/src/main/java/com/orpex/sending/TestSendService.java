@@ -1,5 +1,7 @@
 package com.orpex.sending;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
 import com.orpex.core.mail.MailSendException;
@@ -28,14 +30,16 @@ public class TestSendService {
     private final RuleRepository rules;
     private final MailGateway gateway;
     private final MailSenderProvider senders;
+    private final AuditLog audit;
 
-    public TestSendService(RuleRepository rules, MailGateway gateway, MailSenderProvider senders) {
+    public TestSendService(RuleRepository rules, MailGateway gateway, MailSenderProvider senders, AuditLog audit) {
         this.rules = rules;
         this.gateway = gateway;
         this.senders = senders;
+        this.audit = audit;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Result sendToMyself(long ownerId, long ruleId, String myEmail) {
         Rule rule = rules.findByIdAndOwnerId(ruleId, ownerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Relance introuvable."));
@@ -51,6 +55,7 @@ public class TestSendService {
         String intro = "[Envoi de test : ce message serait envoyé à " + rule.getRecipientEmail() + "]\n\n";
         try {
             gateway.send(new MailMessage(senders.current().from(), myEmail, "[Test] " + subject, intro + body));
+            audit.record(AuditEvent.TEST_SEND, ownerId, "RULE", rule.getBusinessId(), null, "envoyé à " + myEmail);
             return new Result(true, myEmail, null, null);
         } catch (MailSendException e) {
             return new Result(false, myEmail, SendIssue.of(e.kind()), e.getMessage());

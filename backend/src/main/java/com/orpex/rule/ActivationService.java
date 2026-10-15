@@ -1,5 +1,7 @@
 package com.orpex.rule;
 
+import com.orpex.audit.AuditEvent;
+import com.orpex.audit.AuditLog;
 import com.orpex.core.calendar.ActivationPlanner;
 import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.importing.RuleStatus;
@@ -37,13 +39,15 @@ public class ActivationService {
     private final OccurrenceRepository occurrences;
     private final HolidayService holidayService;
     private final Clock clock;
+    private final AuditLog audit;
 
     public ActivationService(RuleRepository rules, OccurrenceRepository occurrences, HolidayService holidayService,
-            Clock clock) {
+            Clock clock, AuditLog audit) {
         this.rules = rules;
         this.occurrences = occurrences;
         this.holidayService = holidayService;
         this.clock = clock;
+        this.audit = audit;
     }
 
     @Transactional
@@ -107,6 +111,8 @@ public class ActivationService {
         }
         rule.markActivated(now);
         List<LocalDate> planned = split.planned();
+        audit.record(AuditEvent.RULE_ACTIVATED, rule.getOwnerId(), "RULE", rule.getBusinessId(), null,
+                planned.size() + " envoi(s) prévu(s), " + split.missed().size() + " manqué(s)");
         return new ActivationResult(rule.getId(), rule.getBusinessId(), planned.size(), split.missed().size(),
                 planned.isEmpty() ? null : planned.getFirst(), planned.isEmpty() ? null : planned.getLast());
     }
