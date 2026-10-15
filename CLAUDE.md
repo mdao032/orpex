@@ -55,6 +55,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   l'écran affiche une phrase claire qui dit quoi faire (`sendProblem`, `shared/rule-labels.ts`) ; `last_error` garde le
   détail technique, proposé replié (« Détail technique »).
   Désactivé pendant les tests (`orpex.worker.enabled=false` via failsafe) : les tests appellent `processDueSends()`.
+- `backend/.../validation/` : validation du jour (`ValidationService`, `/api/validation/today`, `POST /api/validation`) :
+  seulement les envois d'aujourd'hui, avant l'heure limite (`orpex.validation-cutoff-minutes`, 30 min avant l'envoi) ;
+  validé → `VALIDATED` (qui, quand), décoché → `NOT_VALIDATED` ; à l'heure d'envoi, un envoi encore en attente →
+  `NOT_VALIDATED` (worker), jamais envoyé.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
   variables (colonnes libres comprises) sont relevées à l'import (`rules.variables`, JSON).

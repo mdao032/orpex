@@ -141,7 +141,8 @@ class SendWorkerIT {
 
         worker.processDueSends();
         assertThat(states(paused).getFirst()).isEqualTo(OccurrenceState.PLANNED);
-        assertThat(states(awaiting).getFirst()).isEqualTo(OccurrenceState.AWAITING_VALIDATION);
+        assertThat(states(awaiting).getFirst()).as("non validé à son heure : ne part jamais")
+                .isEqualTo(OccurrenceState.NOT_VALIDATED);
 
         long normal = activatedRule("dest@exemple.ml", "Relance", "Bonjour", Map.of(), false);
         makeDue(normal, "2027-10-04");

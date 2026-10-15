@@ -1,6 +1,7 @@
 package com.orpex.rule;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -42,6 +43,33 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
             limit :limit
             for update of o skip locked""")
     List<Long> lockDue(@Param("now") Instant now, @Param("oldest") Instant oldest, @Param("limit") int limit);
+
+    /**
+     * Envois en attente de validation dont l'heure est venue : sans validation, rien ne part, et un envoi non validé
+     * ne part jamais en retard (spécification §7).
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update Occurrence o set o.state = :notValidated, o.updatedAt = :now
+            where o.state = :awaiting and o.scheduledAt <= :now""")
+    int markExpiredAwaitingAsNotValidated(@Param("now") Instant now,
+            @Param("awaiting") OccurrenceState awaiting, @Param("notValidated") OccurrenceState notValidated);
+
+    /** Envois du jour en attente de validation d'un propriétaire (lignes actives, non en pause). */
+    @Query("""
+            select o from Occurrence o, Rule r
+            where r.id = o.ruleId and r.ownerId = :ownerId and r.status = com.orpex.core.importing.RuleStatus.ACTIVE
+              and r.paused = false and o.state = :awaiting and o.scheduledDate = :day
+            order by o.scheduledAt, o.id""")
+    List<Occurrence> findAwaitingValidation(@Param("ownerId") long ownerId, @Param("day") LocalDate day,
+            @Param("awaiting") OccurrenceState awaiting);
+
+    /** Nombre d'envois déjà partis, par ligne : « nombre de relances déjà envoyées » (spécification §7). */
+    @Query("""
+            select o.ruleId, count(o) from Occurrence o
+            where o.ruleId in :ruleIds and o.state = :sent group by o.ruleId""")
+    List<Object[]> countByRuleIdsAndState(@Param("ruleIds") Collection<Long> ruleIds,
+            @Param("sent") OccurrenceState sent);
 
     /**
      * Envois restés « en cours » au-delà du délai d'envoi : l'application s'est arrêtée pendant l'envoi, on ne sait

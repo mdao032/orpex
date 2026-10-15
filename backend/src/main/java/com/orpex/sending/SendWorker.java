@@ -94,9 +94,20 @@ public class SendWorker {
         return marked == null ? 0 : marked;
     }
 
+    /** Envois non validés à leur heure : « non validé », jamais envoyés, même en retard (spécification §7). */
+    public int expireUnvalidatedSends() {
+        Integer expired = transaction.execute(status -> occurrences.markExpiredAwaitingAsNotValidated(clock.instant(),
+                OccurrenceState.AWAITING_VALIDATION, OccurrenceState.NOT_VALIDATED));
+        if (expired != null && expired > 0) {
+            log.info("{} envoi(s) non validé(s) à leur heure : ils ne partiront pas", expired);
+        }
+        return expired == null ? 0 : expired;
+    }
+
     /** Un passage : traite au plus un lot d'envois dus. */
     public Pass processDueSends() {
         recoverInterruptedSends();
+        expireUnvalidatedSends();
         if (sendingControl.globalState().paused()) {
             return new Pass(0, 0, 0, 0);
         }

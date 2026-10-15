@@ -103,6 +103,30 @@ public class Occurrence {
         this.updatedAt = now;
     }
 
+    /** Validation du jour par le propriétaire (spécification §7) : l'envoi partira à son heure. */
+    public void validate(long actorId, Instant now) {
+        requireAwaitingValidation();
+        this.state = OccurrenceState.VALIDATED;
+        this.validatedBy = actorId;
+        this.validatedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** Décoché par le propriétaire lors de la validation du jour : il ne partira pas. */
+    public void reject(long actorId, Instant now) {
+        requireAwaitingValidation();
+        this.state = OccurrenceState.NOT_VALIDATED;
+        this.validatedBy = actorId;
+        this.validatedAt = now;
+        this.updatedAt = now;
+    }
+
+    private void requireAwaitingValidation() {
+        if (state != OccurrenceState.AWAITING_VALIDATION) {
+            throw new IllegalStateException("Envoi " + id + " : pas en attente de validation (état " + state + ")");
+        }
+    }
+
     /** Réservé par le worker : il part maintenant (jamais deux fois, grâce au verrou et à cet état). */
     public void markSending(Instant now) {
         this.state = OccurrenceState.SENDING;
