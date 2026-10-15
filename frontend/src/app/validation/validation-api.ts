@@ -13,9 +13,11 @@ export interface Pending {
   scheduledAt: string;
   /** Heure limite de validation. */
   cutoffAt: string;
-  /** Faux : heure limite passée, l'envoi ne partira pas. */
+  /** Faux : heure limite passée (plus de validation ni de changement d'avis possible). */
   open: boolean;
   alreadySent: number;
+  /** Décision du jour : en attente, validée, ou décochée. */
+  decision: 'PENDING' | 'VALIDATED' | 'UNCHECKED';
 }
 
 export interface Decision {
@@ -31,6 +33,11 @@ export class ValidationApi {
 
   today(): Promise<Pending[]> {
     return firstValueFrom(this.http.get<Pending[]>('/api/validation/today'));
+  }
+
+  /** Revenir sur sa décision du jour (avant l'heure limite) : l'envoi attend de nouveau sa validation. */
+  reopen(sendId: number): Promise<Pending> {
+    return firstValueFrom(this.http.post<Pending>('/api/validation/reopen', { sendId }));
   }
 
   /** {@code validate} partiront à leur heure ; {@code reject} (décochés) ne partiront pas. */

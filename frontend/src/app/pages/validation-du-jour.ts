@@ -23,6 +23,7 @@ import { Decision, Pending, ValidationApi } from '../validation/validation-api';
       <p class="aide">
         Ces relances ne partiront que si vous les validez avant leur heure limite. Décochez celles qui ne doivent pas
         partir aujourd'hui (dossier réglé, situation changée) ; clôturez un dossier réglé pour arrêter ses relances.
+        Jusqu'à l'heure limite, vous pouvez revenir sur votre décision.
       </p>
       <table>
         <thead>
@@ -39,10 +40,12 @@ import { Decision, Pending, ValidationApi } from '../validation/validation-api';
         </thead>
         <tbody>
           @for (r of relances(); track r.sendId) {
-            <tr [class.inactif]="!r.open">
+            <tr [class.inactif]="!r.open || r.decision === 'UNCHECKED'">
               <td>
-                <input type="checkbox" [checked]="coche(r)" [disabled]="!r.open || enCours()"
-                       (change)="basculer(r.sendId)" [attr.aria-label]="'Valider ' + r.businessId" />
+                @if (r.decision === 'PENDING') {
+                  <input type="checkbox" [checked]="coche(r)" [disabled]="!r.open || enCours()"
+                         (change)="basculer(r.sendId)" [attr.aria-label]="'Valider ' + r.businessId" />
+                }
               </td>
               <td>
                 <a [routerLink]="['/lignes', r.ruleId]">{{ r.businessId }}</a>
@@ -54,12 +57,22 @@ import { Decision, Pending, ValidationApi } from '../validation/validation-api';
               <td>
                 @if (r.open) {
                   {{ r.cutoffAt | heure: 'HH:mm' }}
+                } @else if (r.decision === 'VALIDATED') {
+                  Passée
                 } @else {
                   <span class="erreur">Passée : ne partira pas</span>
+                }
+                @if (r.decision === 'VALIDATED') {
+                  <div class="decision validee">Validée : partira à son heure</div>
+                } @else if (r.decision === 'UNCHECKED') {
+                  <div class="decision decochee">Décochée : ne partira pas</div>
                 }
               </td>
               <td>{{ r.alreadySent }}</td>
               <td class="actions">
+                @if (r.decision !== 'PENDING' && r.open) {
+                  <button type="button" (click)="revenir(r)" [disabled]="enCours()">Revenir sur ma décision</button>
+                }
                 <button type="button" (click)="clore(r)" [disabled]="enCours()">Clore ce dossier</button>
               </td>
             </tr>
@@ -87,8 +100,8 @@ export class ValidationDuJour implements OnInit {
   protected readonly enCours = signal(false);
   protected readonly message = signal<{ texte: string; erreur: boolean } | null>(null);
 
-  /** Envois encore validables (heure limite non passée). */
-  protected readonly ouvertes = computed(() => this.relances().filter((r) => r.open));
+  /** Envois encore à valider (en attente, heure limite non passée). */
+  protected readonly ouvertes = computed(() => this.relances().filter((r) => r.open && r.decision === 'PENDING'));
   protected readonly selection = computed(() => this.ouvertes().filter((r) => !this.decoches().has(r.sendId)));
 
   async ngOnInit(): Promise<void> {
@@ -121,6 +134,13 @@ export class ValidationDuJour implements OnInit {
 
   protected async toutValider(): Promise<void> {
     await this.decider(this.ouvertes().map((r) => r.sendId), []);
+  }
+
+  protected async revenir(r: Pending): Promise<void> {
+    await this.executer(async () => {
+      await this.api.reopen(r.sendId);
+      return `${r.businessId} : décision annulée, la relance attend de nouveau votre validation.`;
+    });
   }
 
   protected async clore(r: Pending): Promise<void> {

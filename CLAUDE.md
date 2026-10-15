@@ -58,7 +58,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../validation/` : validation du jour (`ValidationService`, `/api/validation/today`, `POST /api/validation`) :
   seulement les envois d'aujourd'hui, avant l'heure limite (`orpex.validation-cutoff-minutes`, 30 min avant l'envoi) ;
   validé → `VALIDATED` (qui, quand), décoché → `NOT_VALIDATED` ; à l'heure d'envoi, un envoi encore en attente →
-  `NOT_VALIDATED` (worker), jamais envoyé.
+  `NOT_VALIDATED` (worker), jamais envoyé. Retour sur sa décision du jour avant l'heure limite (`/api/validation/reopen`) ; un envoi
+  devenu « non validé » faute de validation reste définitif.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
   variables (colonnes libres comprises) sont relevées à l'import (`rules.variables`, JSON).
