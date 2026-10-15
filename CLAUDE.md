@@ -22,8 +22,8 @@ L'humain rédige les messages ; la machine ne fait que planifier et expédier. L
   `-flyway`, `-data-jpa`, etc.), Maven, PostgreSQL, Flyway.
 - `frontend/` : Angular 22.2, composants autonomes, signaux, SCSS, tests Vitest. Aucune ressource externe
   (pas de CDN ni de police distante) : l'outil tourne dans un réseau bancaire.
-- `docker-compose.yml` : PostgreSQL 17 (port hôte **5435**) et Mailpit (SMTP 1025, interface
-  http://localhost:8025) pour le développement.
+- `docker-compose.yml` : PostgreSQL 17 (port hôte **5435**) et Mailpit (SMTP **1026**, interface
+  http://localhost:8026 ; ports décalés pour ne pas entrer en conflit avec un autre projet) pour le développement.
 - Dépôt unique (back + front) : https://github.com/mdao032/orpex, branche `main`.
 - Déploiement visé : serveur interne de la banque (JAR ou image Docker), jamais de service cloud tiers obligatoire.
 

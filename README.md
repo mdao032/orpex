@@ -39,7 +39,8 @@ npm start
 
 - Compte de développement : `admin@orpex.local` (mot de passe `dev-only-change-me`), créé au premier démarrage
   en profil `dev` si la table `users` est vide.
-- Les mails envoyés en développement n'arrivent nulle part : ils s'affichent dans Mailpit, http://localhost:8025.
+- Les mails envoyés en développement n'arrivent nulle part : ils s'affichent dans Mailpit, http://localhost:8026
+  (SMTP sur le port 1026 ; ports décalés pour éviter un conflit avec un autre projet).
 - Vérifier que l'API répond : http://localhost:8080/actuator/health
 - Configuration : `application.properties` (commune, surchargeable par variables `ORPEX_*`) et
   `application-dev.properties` (surcharges du profil `dev` : base Docker, Mailpit, compte de développement).

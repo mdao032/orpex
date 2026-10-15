@@ -22,8 +22,9 @@ services:
       # Pas de recherche DNS inverse du client : sinon chaque mail reçu prend plusieurs secondes.
       MP_SMTP_DISABLE_RDNS: "true"
     ports:
-      - "1025:1025"   # SMTP : l'application envoie ici en développement
-      - "8025:8025"   # Interface web : http://localhost:8025
+      # Ports hôte 1026/8026 (et non 1025/8025) : pas de conflit avec le faux serveur de mail d'un autre projet.
+      - "1026:1025"   # SMTP : l'application envoie ici en développement
+      - "8026:8025"   # Interface web : http://localhost:8026
 
 volumes:
   orpex-pgdata:
