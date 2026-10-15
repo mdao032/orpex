@@ -7,6 +7,7 @@ import com.orpex.core.mail.MessageTemplate;
 import com.orpex.mail.MailSenderProvider;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
+import com.orpex.rule.SendIssue;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,8 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class TestSendService {
 
-    /** {@code detail} : erreur du relais en cas d'échec. */
-    public record Result(boolean success, String to, String detail) {
+    /** {@code issue} : nature de l'échec (message clair à l'écran) ; {@code detail} : erreur technique du relais. */
+    public record Result(boolean success, String to, SendIssue issue, String detail) {
     }
 
     private final RuleRepository rules;
@@ -50,9 +51,9 @@ public class TestSendService {
         String intro = "[Envoi de test : ce message serait envoyé à " + rule.getRecipientEmail() + "]\n\n";
         try {
             gateway.send(new MailMessage(senders.current().from(), myEmail, "[Test] " + subject, intro + body));
-            return new Result(true, myEmail, null);
+            return new Result(true, myEmail, null, null);
         } catch (MailSendException e) {
-            return new Result(false, myEmail, e.getMessage());
+            return new Result(false, myEmail, SendIssue.of(e.kind()), e.getMessage());
         }
     }
 }

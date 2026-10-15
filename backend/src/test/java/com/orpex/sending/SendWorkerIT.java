@@ -167,6 +167,7 @@ class SendWorkerIT {
         Occurrence missing = occurrences.findAllByRuleIdOrderByScheduledDateAsc(incomplete).getFirst();
         assertThat(missing.getState()).isEqualTo(OccurrenceState.FAILED);
         assertThat(missing.getLastError()).isEqualTo("message incomplet : la variable {{montant}} n'a pas de valeur");
+        assertThat(missing.getIssue()).isEqualTo(com.orpex.rule.SendIssue.MESSAGE_INCOMPLETE);
         Occurrence rejected = occurrences.findAllByRuleIdOrderByScheduledDateAsc(refused).getFirst();
         assertThat(rejected.getState()).isEqualTo(OccurrenceState.FAILED);
         assertThat(rejected.getLastError()).startsWith("refusé par le serveur : 550");

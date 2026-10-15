@@ -68,3 +68,83 @@ export function closeQuestion(businessId: string): string {
 export function closeMessage(businessId: string, cancelled: number): string {
   return `Dossier ${businessId} clos : ${cancelled} envoi(s) à venir annulé(s).`;
 }
+
+/** Nature du dernier problème d'un envoi (ou de la décision après vérification). */
+export type SendIssue =
+  | 'RELAY_UNREACHABLE'
+  | 'RELAY_TEMPORARY'
+  | 'RECIPIENT_REFUSED'
+  | 'RELAY_REFUSED'
+  | 'AUTH_REFUSED'
+  | 'CONFIGURATION'
+  | 'MESSAGE_INCOMPLETE'
+  | 'INTERRUPTED'
+  | 'CONFIRMED_SENT'
+  | 'CONFIRMED_NOT_SENT';
+
+/** Message pour l'utilisateur quand un envoi a définitivement échoué (ou qu'un envoi de test n'est pas parti). */
+const FINAL: Record<SendIssue, string> = {
+  RELAY_UNREACHABLE: 'Le serveur de messagerie ne répond pas. Prévenez l’administrateur.',
+  RELAY_TEMPORARY: 'Le serveur de messagerie a refusé l’envoi. Prévenez l’administrateur.',
+  RECIPIENT_REFUSED: 'L’adresse du destinataire a été refusée. Vérifiez-la dans votre fichier.',
+  RELAY_REFUSED: 'Le serveur de messagerie a refusé ce message. Prévenez l’administrateur.',
+  AUTH_REFUSED: 'Le serveur de messagerie refuse la connexion de l’application. Prévenez l’administrateur.',
+  CONFIGURATION: 'La configuration de la messagerie est inutilisable. Prévenez l’administrateur.',
+  MESSAGE_INCOMPLETE: 'Le message contient une variable sans valeur. Corrigez le fichier.',
+  INTERRUPTED: 'L’application s’est arrêtée pendant l’envoi : impossible de savoir si le mail est parti. '
+    + 'Vérifiez, puis indiquez-le ci-dessous.',
+  CONFIRMED_SENT: 'Déclaré parti après vérification.',
+  CONFIRMED_NOT_SENT: 'Déclaré non parti après vérification : il ne sera pas renvoyé.',
+};
+
+export interface SendProblem {
+  /** Phrase claire, qui dit quoi faire. */
+  text: string;
+  /** erreur, avertissement (nouvel essai automatique) ou information. */
+  level: 'erreur' | 'avertissement' | 'info';
+  /** Détail technique à proposer (replié), pour l'administrateur. */
+  technical: string | null;
+}
+
+/**
+ * Message pour l'utilisateur à partir de la nature du problème d'un envoi ; {@code nextAttempt} : date et heure
+ * déjà formatées du prochain essai automatique.
+ */
+export function sendProblem(
+  send: { state: OccurrenceState; attempts: number; issue: SendIssue | null; lastError: string | null },
+  maxAttempts: number,
+  nextAttempt: string | null,
+): SendProblem | null {
+  const { state, attempts, issue, lastError } = send;
+  if (!issue) {
+    return lastError ? { text: lastError, level: 'erreur', technical: null } : null;
+  }
+  if (issue === 'CONFIRMED_SENT' || issue === 'CONFIRMED_NOT_SENT') {
+    return { text: FINAL[issue], level: 'info', technical: null };
+  }
+  if (nextAttempt && state !== 'FAILED') {
+    const cause = issue === 'RELAY_TEMPORARY'
+      ? 'Le serveur de messagerie a refusé l’envoi pour le moment.'
+      : 'Le serveur de messagerie ne répond pas.';
+    return {
+      text: `${cause} Nouvel essai automatique le ${nextAttempt} (essai ${attempts + 1} sur ${maxAttempts}).`,
+      level: 'avertissement',
+      technical: lastError,
+    };
+  }
+  let text = FINAL[issue];
+  if (issue === 'MESSAGE_INCOMPLETE') {
+    const variable = lastError?.match(/\{\{\s*([a-z0-9_]+)\s*}}/)?.[1];
+    text = variable ? `Le message contient une variable sans valeur ({{${variable}}}). Corrigez le fichier.` : text;
+  } else if ((issue === 'RELAY_UNREACHABLE' || issue === 'RELAY_TEMPORARY') && attempts > 1) {
+    text = issue === 'RELAY_UNREACHABLE'
+      ? `Le serveur de messagerie ne répond pas, et les ${attempts} essais ont échoué. Prévenez l’administrateur.`
+      : `Le serveur de messagerie a refusé l’envoi à chaque essai (${attempts}). Prévenez l’administrateur.`;
+  }
+  return { text, level: 'erreur', technical: lastError };
+}
+
+/** Message d'un envoi de test qui n'est pas parti. */
+export function testSendProblem(issue: SendIssue | null, detail: string | null): string {
+  return issue ? FINAL[issue] : `L'envoi de test n'est pas parti : ${detail ?? 'erreur inconnue'}.`;
+}

@@ -1,20 +1,23 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Auth } from '../auth/auth';
-import { RuleDetail, RulesApi } from '../imports/rules-api';
+import { OccurrenceView, RuleDetail, RulesApi } from '../imports/rules-api';
 import { apiErrorMessage } from '../shared/api-error';
 import {
   OCCURRENCE_STATES,
   OccurrenceState,
+  SendProblem,
   activationMessage,
   closeMessage,
   closeQuestion,
   forecastLabel,
   pauseMessage,
   ruleStatusLabel,
+  sendProblem,
+  testSendProblem,
 } from '../shared/rule-labels';
 import { frenchDate, scheduleLabel } from '../shared/schedule-label';
-import { InstallationTimePipe } from '../shared/installation-time';
+import { InstallationTimePipe, formatInZone } from '../shared/installation-time';
 
 /** Envois encore à venir (ni partis, ni abandonnés). */
 const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATED'];
@@ -115,15 +118,20 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
                   <td>{{ e.scheduledAt | heure: 'HH:mm' }}</td>
                   <td><span class="badge">{{ etat(e.state) }}</span></td>
                   <td class="detail">
-                    @if (e.sentAt) { Envoyé le {{ e.sentAt | heure: 'dd/MM/yyyy à HH:mm' }}. }
+                    @if (e.sentAt) {
+                      Envoyé le {{ e.sentAt | heure: 'dd/MM/yyyy à HH:mm' }}@if (e.attempts > 1) { après
+                      {{ e.attempts }} essais}.
+                    }
                     @if (e.validatedAt) { Validé le {{ e.validatedAt | heure: 'dd/MM/yyyy à HH:mm' }}. }
-                    @if (e.attempts > 1 || (e.attempts === 1 && e.state !== 'SENT')) {
-                      {{ e.attempts }} tentative(s).
+                    @if (probleme(e, d.maxAttempts); as p) {
+                      <div [class]="'probleme ' + p.level">{{ p.text }}</div>
+                      @if (p.technical) {
+                        <details class="technique">
+                          <summary>Détail technique</summary>
+                          {{ p.technical }}
+                        </details>
+                      }
                     }
-                    @if (e.nextAttemptAt) {
-                      Nouvelle tentative prévue le {{ e.nextAttemptAt | heure: 'dd/MM/yyyy à HH:mm' }}.
-                    }
-                    @if (e.lastError) { <span class="erreur">{{ e.lastError }}</span> }
                     @if (e.state === 'TO_CHECK') {
                       <div class="actions verification">
                         <button type="button" (click)="trancher(e.id, true)" [disabled]="enCours()">Il est parti</button>
@@ -174,6 +182,12 @@ export class Relance implements OnInit {
     }
   }
 
+  protected probleme(e: OccurrenceView, maxAttempts: number): SendProblem | null {
+    return sendProblem(e, maxAttempts, e.nextAttemptAt
+      ? formatInZone(e.nextAttemptAt, 'dd/MM/yyyy à HH:mm', this.fuseau())
+      : null);
+  }
+
   protected etat(state: OccurrenceState): string {
     return OCCURRENCE_STATES[state];
   }
@@ -198,7 +212,7 @@ export class Relance implements OnInit {
       const resultat = await this.api.sendToMyself(this.id);
       this.message.set(resultat.success
         ? { texte: `Relance envoyée à votre adresse (${resultat.to}) pour vérification.`, erreur: false }
-        : { texte: `L'envoi de test n'est pas parti : ${resultat.detail}`, erreur: true });
+        : { texte: testSendProblem(resultat.issue, resultat.detail), erreur: true });
     } catch (error) {
       this.message.set({ texte: apiErrorMessage(error), erreur: true });
     } finally {

@@ -96,6 +96,7 @@ class RecoveryIT {
         Occurrence toCheck = occurrences.findById(interrupted).orElseThrow();
         assertThat(toCheck.getState()).isEqualTo(OccurrenceState.TO_CHECK);
         assertThat(toCheck.getLastError()).startsWith("envoi interrompu (arrêt de l'application)");
+        assertThat(toCheck.getIssue()).isEqualTo(com.orpex.rule.SendIssue.INTERRUPTED);
         assertThat(occurrences.findById(inProgress).orElseThrow().getState())
                 .as("envoi en cours depuis peu : laissé tranquille").isEqualTo(OccurrenceState.SENDING);
         worker.processDueSends();

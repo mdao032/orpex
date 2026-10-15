@@ -59,6 +59,7 @@ class SmtpMailGatewayIT {
                 new MailMessage("relances@banque.ml", "inconnu@ailleurs.com", "Relance", "Bonjour")))
                 .isInstanceOfSatisfying(MailSendException.class, e -> {
                     assertThat(e.isRetryable()).as("ne pas réessayer : %s", e.getMessage()).isFalse();
+                    assertThat(e.kind()).isEqualTo(MailSendException.Kind.RECIPIENT_REFUSED);
                     assertThat(e.getMessage()).startsWith("refusé par le serveur : 5");
                 });
     }
@@ -69,6 +70,7 @@ class SmtpMailGatewayIT {
                 new MailMessage("relances@banque.ml", "awa.traore@exemple.ml", "Relance", "Bonjour")))
                 .isInstanceOfSatisfying(MailSendException.class, e -> {
                     assertThat(e.isRetryable()).as("réessayer : %s", e.getMessage()).isTrue();
+                    assertThat(e.kind()).isEqualTo(MailSendException.Kind.RELAY_UNREACHABLE);
                     assertThat(e.getMessage()).startsWith("serveur de messagerie injoignable");
                 });
     }

@@ -1,6 +1,7 @@
 package com.orpex.api;
 
 import com.orpex.account.CurrentUser;
+import com.orpex.config.OrpexProperties;
 import com.orpex.core.calendar.ScheduleCalculator;
 import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.calendar.SendMode;
@@ -15,6 +16,7 @@ import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
+import com.orpex.rule.SendIssue;
 import com.orpex.rule.SendingControlService;
 import com.orpex.rule.ToCheckService;
 import com.orpex.sending.TestSendService;
@@ -61,20 +63,25 @@ public class RuleController {
     /** Un envoi : jour et heure prévus, état, et ce qui s'est passé (date d'envoi réelle, tentatives, erreur). */
     public record OccurrenceView(long id, LocalDate scheduledDate, Instant scheduledAt, OccurrenceState state,
                                  Instant validatedAt, Instant sentAt, int attempts, String lastError,
-                                 Instant nextAttemptAt) {
+                                 Instant nextAttemptAt, SendIssue issue) {
 
         static OccurrenceView of(Occurrence o) {
             return new OccurrenceView(o.getId(), o.getScheduledDate(), o.getScheduledAt(), o.getState(),
-                    o.getValidatedAt(), o.getSentAt(), o.getAttempts(), o.getLastError(), o.getNextAttemptAt());
+                    o.getValidatedAt(), o.getSentAt(), o.getAttempts(), o.getLastError(), o.getNextAttemptAt(),
+                    o.getIssue());
         }
     }
 
-    /** Détail d'une relance : sa configuration, son message, ses envois et leur nombre par état. */
+    /**
+     * Détail d'une relance : sa configuration, son message, ses envois et leur nombre par état ; {@code maxAttempts} :
+     * essais au plus pour un envoi (premier envoi et nouvelles tentatives).
+     */
     public record RuleDetail(RuleView rule, String body, List<OccurrenceView> sends,
-                             Map<OccurrenceState, Long> countsByState) {
+                             Map<OccurrenceState, Long> countsByState, int maxAttempts) {
     }
 
     private final RuleRepository rules;
+    private final OrpexProperties properties;
     private final OccurrenceRepository occurrences;
     private final ActivationService activationService;
     private final ClosureService closureService;
@@ -83,10 +90,12 @@ public class RuleController {
     private final TestSendService testSend;
     private final CurrentUser currentUser;
 
-    public RuleController(RuleRepository rules, OccurrenceRepository occurrences, ActivationService activationService,
+    public RuleController(RuleRepository rules, OrpexProperties properties, OccurrenceRepository occurrences,
+            ActivationService activationService,
             ClosureService closureService, SendingControlService sendingControl, ToCheckService toCheck,
             TestSendService testSend, CurrentUser currentUser) {
         this.rules = rules;
+        this.properties = properties;
         this.occurrences = occurrences;
         this.activationService = activationService;
         this.closureService = closureService;
@@ -154,7 +163,8 @@ public class RuleController {
         sends.forEach(send -> counts.merge(send.state(), 1L, Long::sum));
         Forecast forecast = rule.isActivated() || rule.getStatus() != RuleStatus.ACTIVE
                 ? null : activationService.forecast(rule, activationService.calculator());
-        return new RuleDetail(RuleView.of(rule, forecast), rule.getBody(), sends, counts);
+        return new RuleDetail(RuleView.of(rule, forecast), rule.getBody(), sends, counts,
+                properties.worker().retryDelays().size() + 1);
     }
 
     @GetMapping

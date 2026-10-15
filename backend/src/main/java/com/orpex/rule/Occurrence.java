@@ -55,6 +55,11 @@ public class Occurrence {
     @Column(name = "last_error", columnDefinition = "text")
     private String lastError;
 
+    /** Nature du dernier problème (ou de la décision « à vérifier »), pour un message clair ; null s'il n'y en a pas. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "error_kind", length = 30)
+    private SendIssue issue;
+
     /** Prochaine tentative après un échec temporaire ; null sinon. */
     @Column(name = "next_attempt_at")
     private Instant nextAttemptAt;
@@ -110,14 +115,16 @@ public class Occurrence {
         this.attempts++;
         this.sentAt = now;
         this.lastError = null;
+        this.issue = null;
         this.nextAttemptAt = null;
         this.updatedAt = now;
     }
 
     /** Échec définitif : plus aucune tentative. */
-    public void markFailed(String error, Instant now) {
+    public void markFailed(SendIssue issue, String error, Instant now) {
         this.state = OccurrenceState.FAILED;
         this.attempts++;
+        this.issue = issue;
         this.lastError = error;
         this.nextAttemptAt = null;
         this.updatedAt = now;
@@ -132,6 +139,7 @@ public class Occurrence {
             throw new IllegalStateException("Envoi " + id + " : pas à vérifier (état " + state + ")");
         }
         this.state = sent ? OccurrenceState.SENT : OccurrenceState.FAILED;
+        this.issue = sent ? SendIssue.CONFIRMED_SENT : SendIssue.CONFIRMED_NOT_SENT;
         this.lastError = sent ? "parti (confirmé par l'utilisateur après vérification)"
                 : "non parti (confirmé par l'utilisateur après vérification)";
         this.updatedAt = now;
@@ -141,9 +149,11 @@ public class Occurrence {
      * Échec temporaire : l'envoi reprend son état d'attente ({@code PLANNED}, ou {@code VALIDATED} s'il avait été
      * validé) et repartira à {@code nextAttempt}.
      */
-    public void scheduleRetry(String error, Instant nextAttempt, OccurrenceState waitingState, Instant now) {
+    public void scheduleRetry(SendIssue issue, String error, Instant nextAttempt, OccurrenceState waitingState,
+            Instant now) {
         this.state = waitingState;
         this.attempts++;
+        this.issue = issue;
         this.lastError = error;
         this.nextAttemptAt = nextAttempt;
         this.updatedAt = now;
@@ -191,6 +201,10 @@ public class Occurrence {
 
     public String getLastError() {
         return lastError;
+    }
+
+    public SendIssue getIssue() {
+        return issue;
     }
 
     public Instant getNextAttemptAt() {

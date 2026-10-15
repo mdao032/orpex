@@ -25,6 +25,28 @@ h1 {
   }
 }
 
+.probleme {
+  margin-top: 0.25rem;
+
+  &.erreur {
+    color: var(--orpex-danger);
+  }
+
+  &.avertissement {
+    color: #8a5300;
+  }
+}
+
+.technique {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--orpex-ink-soft);
+
+  summary {
+    cursor: pointer;
+  }
+}
+
 .verification {
   margin-top: 0.4rem;
 }

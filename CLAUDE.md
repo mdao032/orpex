@@ -51,6 +51,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   closes ni en pause partent.
   Envoi resté `SENDING` plus de 10 min (arrêt pendant l'envoi) → `TO_CHECK` (au démarrage et à chaque passage),
   **jamais renvoyé** : le propriétaire tranche (`/api/rules/{id}/sends/{sendId}/resolve`) → `SENT` ou `FAILED`.
+  Chaque problème d'envoi a une nature (`SendIssue`, colonne `error_kind`, issue de `MailSendException.Kind`) :
+  l'écran affiche une phrase claire qui dit quoi faire (`sendProblem`, `shared/rule-labels.ts`) ; `last_error` garde le
+  détail technique, proposé replié (« Détail technique »).
   Désactivé pendant les tests (`orpex.worker.enabled=false` via failsafe) : les tests appellent `processDueSends()`.
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des

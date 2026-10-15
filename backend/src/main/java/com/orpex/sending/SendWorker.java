@@ -11,6 +11,7 @@ import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
 import com.orpex.rule.RuleRepository;
+import com.orpex.rule.SendIssue;
 import com.orpex.rule.SendingControlService;
 import java.time.Clock;
 import java.time.Duration;
@@ -86,7 +87,7 @@ public class SendWorker {
         Instant now = clock.instant();
         Integer marked = transaction.execute(status -> occurrences.markInterruptedAsToCheck(
                 now.minus(properties.worker().sendingTimeout()), now, INTERRUPTED, OccurrenceState.SENDING,
-                OccurrenceState.TO_CHECK));
+                OccurrenceState.TO_CHECK, SendIssue.INTERRUPTED));
         if (marked != null && marked > 0) {
             log.warn("{} envoi(s) interrompu(s) par un arrêt pendant l'envoi : marqués à vérifier", marked);
         }
@@ -131,6 +132,7 @@ public class SendWorker {
     private Outcome send(Occurrence reserved) {
         Rule rule = rules.findForSending(reserved.getRuleId()).orElseThrow();
         String error;
+        SendIssue issue;
         try {
             Map<String, String> values = rule.variableValues();
             gateway.send(new MailMessage(senders.current().from(), rule.getRecipientEmail(),
@@ -140,6 +142,7 @@ public class SendWorker {
                     rule.getId(), reserved.getScheduledDate());
             return Outcome.SENT;
         } catch (MessageTemplate.MissingVariableException e) {
+            issue = SendIssue.MESSAGE_INCOMPLETE;
             error = "message incomplet : " + e.getMessage();
         } catch (MailSendException e) {
             List<Duration> delays = properties.worker().retryDelays();
@@ -148,15 +151,18 @@ public class SendWorker {
                 Instant now = clock.instant();
                 Instant next = now.plus(delays.get(failures - 1));
                 OccurrenceState waiting = rule.isDailyValidation() ? OccurrenceState.VALIDATED : OccurrenceState.PLANNED;
-                record(reserved.getId(), occurrence -> occurrence.scheduleRetry(e.getMessage(), next, waiting, now));
+                record(reserved.getId(),
+                        occurrence -> occurrence.scheduleRetry(SendIssue.of(e.kind()), e.getMessage(), next, waiting, now));
                 log.warn("Envoi {} : échec temporaire {} ({}), nouvelle tentative à {}", reserved.getId(), failures,
                         e.getMessage(), next);
                 return Outcome.RETRY;
             }
+            issue = SendIssue.of(e.kind());
             error = e.isRetryable() ? e.getMessage() + " (" + failures + " tentatives)" : e.getMessage();
         }
         String reason = error;
-        record(reserved.getId(), occurrence -> occurrence.markFailed(reason, clock.instant()));
+        SendIssue finalIssue = issue;
+        record(reserved.getId(), occurrence -> occurrence.markFailed(finalIssue, reason, clock.instant()));
         log.warn("Envoi {} en échec : relance {} (id {}) du {} : {}", reserved.getId(), rule.getBusinessId(),
                 rule.getId(), reserved.getScheduledDate(), reason);
         return Outcome.FAILED;

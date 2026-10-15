@@ -49,11 +49,12 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
      */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
-            update Occurrence o set o.state = :toCheck, o.lastError = :reason, o.updatedAt = :now
+            update Occurrence o set o.state = :toCheck, o.lastError = :reason, o.issue = :interrupted,
+                o.updatedAt = :now
             where o.state = :sending and o.updatedAt < :before""")
     int markInterruptedAsToCheck(@Param("before") Instant before, @Param("now") Instant now,
             @Param("reason") String reason, @Param("sending") OccurrenceState sending,
-            @Param("toCheck") OccurrenceState toCheck);
+            @Param("toCheck") OccurrenceState toCheck, @Param("interrupted") SendIssue interrupted);
 
     /**
      * Worker : envois prévus ou validés dont l'heure est dépassée de trop pour partir encore (arrêt du service). Un

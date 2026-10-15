@@ -48,7 +48,7 @@ public class SmtpMailGateway implements MailGateway {
         try {
             connection = connections.get();
         } catch (RuntimeException e) {
-            throw new MailSendException("configuration SMTP inutilisable : " + e.getMessage(), false, e);
+            throw new MailSendException("configuration SMTP inutilisable : " + e.getMessage(), MailSendException.Kind.CONFIGURATION, e);
         }
         MimeMessage mime = connection.sender().createMimeMessage();
         try {
@@ -58,7 +58,7 @@ public class SmtpMailGateway implements MailGateway {
             helper.setSubject(message.subject());
             helper.setText(message.body(), false);
         } catch (MessagingException | UnsupportedEncodingException e) {
-            throw new MailSendException("message impossible à construire : " + e.getMessage(), false, e);
+            throw new MailSendException("message impossible à construire : " + e.getMessage(), MailSendException.Kind.CONFIGURATION, e);
         }
         try {
             connection.sender().send(mime);
@@ -69,7 +69,8 @@ public class SmtpMailGateway implements MailGateway {
 
     static MailSendException classify(MailException e) {
         if (e instanceof MailAuthenticationException) {
-            return new MailSendException("authentification refusée par le serveur de messagerie", false, e);
+            return new MailSendException("authentification refusée par le serveur de messagerie", MailSendException.Kind.AUTH_REFUSED,
+                    e);
         }
         Optional<String> reply = smtpReply(e);
         if (reply.isPresent()) {
@@ -77,12 +78,17 @@ public class SmtpMailGateway implements MailGateway {
             code.find();
             boolean temporary = Integer.parseInt(code.group(1)) < 500;
             return new MailSendException((temporary ? "refus temporaire du serveur : " : "refusé par le serveur : ")
-                    + shorten(reply.get()), temporary, e);
+                    + shorten(reply.get()), temporary ? MailSendException.Kind.RELAY_TEMPORARY : refusal(e), e);
         }
         if (hasInvalidAddress(e)) {
-            return new MailSendException("adresse refusée par le serveur : " + detail(e), false, e);
+            return new MailSendException("adresse refusée par le serveur : " + detail(e), MailSendException.Kind.RECIPIENT_REFUSED, e);
         }
-        return new MailSendException("serveur de messagerie injoignable : " + detail(e), true, e);
+        return new MailSendException("serveur de messagerie injoignable : " + detail(e), MailSendException.Kind.RELAY_UNREACHABLE, e);
+    }
+
+    /** Refus définitif : de l'adresse du destinataire si le serveur l'a désignée, sinon du message. */
+    private static MailSendException.Kind refusal(MailException e) {
+        return hasInvalidAddress(e) ? MailSendException.Kind.RECIPIENT_REFUSED : MailSendException.Kind.RELAY_REFUSED;
     }
 
     /**

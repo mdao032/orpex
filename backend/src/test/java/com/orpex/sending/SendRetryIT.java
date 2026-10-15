@@ -38,9 +38,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class SendRetryIT {
 
     private static final MailSendException TEMPORARY =
-            new MailSendException("serveur de messagerie injoignable : Connection refused", true, null);
+            new MailSendException("serveur de messagerie injoignable : Connection refused",
+                    MailSendException.Kind.RELAY_UNREACHABLE, null);
     private static final MailSendException FINAL =
-            new MailSendException("refusé par le serveur : 550 5.1.1 mailbox unavailable", false, null);
+            new MailSendException("refusé par le serveur : 550 5.1.1 mailbox unavailable",
+                    MailSendException.Kind.RECIPIENT_REFUSED, null);
 
     @MockitoBean
     MailGateway gateway;
@@ -83,6 +85,7 @@ class SendRetryIT {
         assertThat(first.getState()).isEqualTo(OccurrenceState.PLANNED);
         assertThat(first.getAttempts()).isEqualTo(1);
         assertThat(first.getLastError()).isEqualTo(TEMPORARY.getMessage());
+        assertThat(first.getIssue()).isEqualTo(com.orpex.rule.SendIssue.RELAY_UNREACHABLE);
         assertThat(Duration.between(Instant.now(), first.getNextAttemptAt()))
                 .isBetween(Duration.ofSeconds(50), Duration.ofSeconds(70));
         assertThat(worker.processDueSends().retried()).as("la tentative suivante n'est pas encore due").isZero();
@@ -114,6 +117,7 @@ class SendRetryIT {
         assertThat(failed.getState()).isEqualTo(OccurrenceState.FAILED);
         assertThat(failed.getAttempts()).isEqualTo(1);
         assertThat(failed.getLastError()).isEqualTo(FINAL.getMessage());
+        assertThat(failed.getIssue()).isEqualTo(com.orpex.rule.SendIssue.RECIPIENT_REFUSED);
     }
 
     @Test

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { OccurrenceState } from '../shared/rule-labels';
+import { OccurrenceState, SendIssue } from '../shared/rule-labels';
 import { Schedule } from '../shared/schedule-label';
 
 export interface RuleView extends Schedule {
@@ -33,6 +33,8 @@ export interface OccurrenceView {
   lastError: string | null;
   /** Prochaine tentative après un échec temporaire. */
   nextAttemptAt: string | null;
+  /** Nature du dernier problème, pour un message clair ; lastError garde le détail technique. */
+  issue: SendIssue | null;
 }
 
 /** Détail d'une relance : configuration, message, envois et leur nombre par état. */
@@ -41,6 +43,8 @@ export interface RuleDetail {
   body: string;
   sends: OccurrenceView[];
   countsByState: Partial<Record<OccurrenceState, number>>;
+  /** Essais au plus pour un envoi (premier envoi et nouvelles tentatives). */
+  maxAttempts: number;
 }
 
 export interface ActivationResult {
@@ -50,6 +54,13 @@ export interface ActivationResult {
   missed: number;
   first: string | null;
   last: string | null;
+}
+
+export interface TestSendResult {
+  success: boolean;
+  to: string;
+  issue: SendIssue | null;
+  detail: string | null;
 }
 
 /** Relances de l'utilisateur connecté (/api/rules). */
@@ -73,10 +84,8 @@ export class RulesApi {
   }
 
   /** Rendu exact de la relance, envoyé à l'utilisateur connecté ; aucun envoi planifié n'est touché. */
-  sendToMyself(id: number): Promise<{ success: boolean; to: string; detail: string | null }> {
-    return firstValueFrom(
-      this.http.post<{ success: boolean; to: string; detail: string | null }>(`/api/rules/${id}/test-send`, null),
-    );
+  sendToMyself(id: number): Promise<TestSendResult> {
+    return firstValueFrom(this.http.post<TestSendResult>(`/api/rules/${id}/test-send`, null));
   }
 
   /** Crée les envois de la relance. */

@@ -18,14 +18,16 @@ const DETAIL: RuleDetail = {
   body: 'Bonjour {{prenom}},\nmerci de régler la facture.',
   sends: [
     { id: 1, scheduledDate: '2027-06-07', scheduledAt: '2027-06-07T09:00:00Z', state: 'MISSED',
-      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null },
+      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null, issue: null },
     { id: 2, scheduledDate: '2027-06-08', scheduledAt: '2027-06-08T09:00:00Z', state: 'PLANNED',
-      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null },
+      validatedAt: null, sentAt: null, attempts: 0, lastError: null, nextAttemptAt: null, issue: null },
     { id: 3, scheduledDate: '2027-06-09', scheduledAt: '2027-06-09T09:00:00Z', state: 'PLANNED',
-      validatedAt: null, sentAt: null, attempts: 1, lastError: 'serveur de messagerie injoignable',
-      nextAttemptAt: '2027-06-09T09:01:00Z' },
+      validatedAt: null, sentAt: null, attempts: 1,
+      lastError: 'serveur de messagerie injoignable : Connection refused: getsockopt',
+      nextAttemptAt: '2027-06-09T09:01:00Z', issue: 'RELAY_UNREACHABLE' },
   ],
   countsByState: { MISSED: 1, PLANNED: 2 },
+  maxAttempts: 4,
 };
 
 describe('Relance', () => {
@@ -62,9 +64,11 @@ describe('Relance', () => {
     expect(rows[0].textContent).toContain('07/06/2027');
     expect(rows[0].textContent).toContain('Manqué');
     expect(rows[1].textContent).toContain('Prévu');
-    expect(rows[2].textContent).toContain('1 tentative(s).');
-    expect(rows[2].textContent).toContain('Nouvelle tentative prévue le 09/06/2027');
-    expect(rows[2].textContent).toContain('serveur de messagerie injoignable');
+    const problem = rows[2].querySelector('.probleme')?.textContent ?? '';
+    expect(problem).toContain('Le serveur de messagerie ne répond pas. Nouvel essai automatique le 09/06/2027');
+    expect(problem).toContain('(essai 2 sur 4)');
+    expect(problem).not.toContain('getsockopt');
+    expect(rows[2].querySelector('details.technique')?.textContent).toContain('getsockopt');
     const counters = page.querySelector('.compteurs')?.textContent ?? '';
     expect(counters).toContain('0 envoyé(s)');
     expect(counters).toContain('2 à venir');
@@ -83,7 +87,8 @@ describe('Relance', () => {
     fixture.detectChanges();
     const http = TestBed.inject(HttpTestingController);
     const toCheck = { ...DETAIL, sends: [{ ...DETAIL.sends[1], state: 'TO_CHECK' as const,
-      lastError: "envoi interrompu (arrêt de l'application)" }], countsByState: { TO_CHECK: 1 } };
+      lastError: "envoi interrompu (arrêt de l'application)", issue: 'INTERRUPTED' as const }],
+      countsByState: { TO_CHECK: 1 } };
     http.expectOne('/api/rules/7').flush(toCheck);
     await nextTick();
     await fixture.whenStable();
