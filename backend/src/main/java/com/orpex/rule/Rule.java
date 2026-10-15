@@ -114,8 +114,8 @@ public class Rule {
     private Map<String, String> variables = new LinkedHashMap<>();
 
     /**
-     * Champs modifiés à l'écran depuis le dernier import (nom de colonne → valeur saisie) : de quoi signaler un conflit
-     * si un ré-import propose une autre valeur (spécification §9).
+     * Champs modifiés à l'écran depuis le dernier import (nom de colonne → valeur du fichier à ce moment, au format de
+     * l'aperçu) : un ré-import qui propose une autre valeur pour l'un d'eux est un conflit (spécification §9).
      */
     @Convert(converter = StringMapJsonConverter.class)
     @Column(name = "edited_in_app", nullable = false, columnDefinition = "text")
@@ -180,13 +180,13 @@ public class Rule {
 
     /**
      * Modification à l'écran (spécification §7 et §9) : nouvelle configuration et valeurs des variables ; l'empreinte du
-     * dernier import est conservée et les champs changés sont retenus.
+     * dernier import est conservée et, pour chaque champ changé, la valeur qu'avait le fichier.
      */
     public void editInApp(ImportedRule edited, Map<String, String> values, List<FieldChanges.Change> changes,
             Instant now) {
         String hash = this.configHash;
         Map<String, String> edits = new LinkedHashMap<>(editedInApp);
-        changes.forEach(change -> edits.put(change.field(), change.after() == null ? "" : change.after()));
+        changes.forEach(change -> edits.putIfAbsent(change.field(), change.before() == null ? "" : change.before()));
         apply(edited, hash, now);
         this.variables = new LinkedHashMap<>(values);
         this.editedInApp = edits;
@@ -195,6 +195,15 @@ public class Rule {
     /** Champs modifiés à l'écran depuis le dernier import. */
     public Map<String, String> getEditedInApp() {
         return Map.copyOf(editedInApp);
+    }
+
+    /**
+     * Ré-import où des valeurs saisies à l'écran sont gardées : {@code editedInApp} indique, pour ces champs, la valeur
+     * du fichier qui n'a pas été retenue.
+     */
+    public void apply(ImportedRule imported, String configHash, Map<String, String> editedInApp, Instant now) {
+        apply(imported, configHash, now);
+        this.editedInApp = new LinkedHashMap<>(editedInApp);
     }
 
     /** Remplace toute la configuration par celle du fichier ; l'état des envois n'est pas touché. */

@@ -89,7 +89,8 @@ class RuleEditIT {
         assertThat(sends.getFirst().getScheduledAt()).isEqualTo(Instant.parse("2027-11-22T10:30:00Z"));
         assertThat(sends.getLast().getState()).isEqualTo(OccurrenceState.CANCELLED);
         Rule rule = rules.findByIdAndOwnerId(id, owner("edit-heure@test.local")).orElseThrow();
-        assertThat(rule.getEditedInApp()).containsEntry("heure_envoi", "10:30").containsEntry("date_fin", "25/11/2027");
+        assertThat(rule.getEditedInApp()).as("valeurs du fichier au moment de la modification")
+                .containsEntry("heure_envoi", "09:00").containsEntry("date_fin", "26/11/2027");
     }
 
     @Test

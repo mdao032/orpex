@@ -8,6 +8,8 @@ import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.ConfigHash;
 import com.orpex.core.importing.FileValidator;
 import com.orpex.core.importing.ImportedRule;
+import com.orpex.core.importing.RowValidation;
+import com.orpex.core.importing.RowValidator;
 import com.orpex.core.importing.RuleStatus;
 import com.orpex.core.importing.XlsxReader;
 import com.orpex.core.mail.MessageTemplate;
@@ -16,6 +18,7 @@ import com.orpex.rule.FieldChanges;
 import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
+import com.orpex.rule.RuleCells;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendsDiff;
 import java.io.InputStream;
@@ -27,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -72,19 +76,21 @@ public class ImportPreviewService {
 
     /**
      * {@code changes} et {@code sendImpact} : seulement pour une ligne modifiée ({@code sendImpact} si elle est
-     * activée) ; {@code closing} : la modification clôt le dossier.
+     * activée) ; {@code closing} : la modification clôt le dossier ; {@code conflicts} : champs modifiés à l'écran
+     * pour lesquels le fichier propose une autre valeur, à trancher un par un avant d'appliquer.
      */
     public record RowPreview(int rowNumber, String id, Action action, List<String> errors, List<String> warnings,
                              Interpreted interpreted, Sends sends, List<FieldChanges.Change> changes,
-                             SendImpact sendImpact, boolean closing) {
+                             SendImpact sendImpact, boolean closing, List<String> conflicts) {
     }
 
     /** Relance en base, active, absente du fichier : aucune action par défaut (option « clore ces dossiers »). */
     public record AbsentRule(long ruleId, String businessId, String subject) {
     }
 
+    /** {@code withConflicts} : lignes modifiées avec au moins un conflit à trancher. */
     public record Counts(int toCreate, int toUpdate, int unchanged, int rejected, int withWarnings,
-                         int plannedSends, int sendsAdded, int sendsMoved, int sendsCancelled) {
+                         int plannedSends, int sendsAdded, int sendsMoved, int sendsCancelled, int withConflicts) {
     }
 
     /** {@code missingColumns} non vide : tout le fichier est refusé, {@code rows} est vide. */
@@ -94,7 +100,19 @@ public class ImportPreviewService {
 
     /** Aperçu, et pour chaque ligne valide (par numéro de ligne) la règle typée et son empreinte : de quoi appliquer. */
     record Analysis(ImportPreview preview, Map<Integer, ImportedRule> rules, Map<Integer, String> hashes,
-                    Map<Integer, Map<String, String>> variables) {
+                    Map<Integer, Map<String, String>> variables, Map<Integer, Update> updates) {
+    }
+
+    /**
+     * Ligne modifiée d'une relance existante : cellules du fichier, champs dont la valeur saisie à l'écran est gardée
+     * d'office (le fichier n'y propose rien de nouveau), conflits, et valeur du fichier de chaque champ modifié.
+     */
+    record Update(Map<String, String> cells, Set<String> keptByDefault, List<String> conflicts,
+                  Map<String, String> fileValues) {
+    }
+
+    /** Configuration du fichier où certains champs gardent la valeur de l'application ; {@code errors} si incohérente. */
+    record Merged(ImportedRule rule, Map<String, String> values, List<String> errors) {
     }
 
     private final HolidayService holidayService;
@@ -128,7 +146,8 @@ public class ImportPreviewService {
         FileValidator.FileResult result = new FileValidator(calendar).validate(sheet, today);
         if (result.isRejected()) {
             return new Analysis(new ImportPreview(fileName, result.missingColumns(),
-                    new Counts(0, 0, 0, 0, 0, 0, 0, 0, 0), List.of(), List.of()), Map.of(), Map.of(), Map.of());
+                    new Counts(0, 0, 0, 0, 0, 0, 0, 0, 0, 0), List.of(), List.of()), Map.of(), Map.of(), Map.of(),
+                    Map.of());
         }
 
         Map<Integer, Map<String, String>> cellsByRow = sheet.rows().stream()
@@ -141,10 +160,11 @@ public class ImportPreviewService {
         Map<Integer, ImportedRule> validRules = new HashMap<>();
         Map<Integer, String> hashes = new HashMap<>();
         Map<Integer, Map<String, String>> variables = new HashMap<>();
+        Map<Integer, Update> updates = new HashMap<>();
         List<RowPreview> rows = result.rows().stream().map(row -> {
             if (!row.isValid()) {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.REJECTED, row.errors(),
-                        row.warnings(), null, null, List.of(), null, false);
+                        row.warnings(), null, null, List.of(), null, false, List.of());
             }
             ImportedRule imported = row.rule();
             String hash = ConfigHash.of(cellsByRow.get(row.rowNumber()));
@@ -156,13 +176,34 @@ public class ImportPreviewService {
             Rule current = existing.get(row.businessId());
             if (current == null) {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.CREATE, row.errors(), row.warnings(),
-                        Interpreted.of(imported), sends(calculator, imported), List.of(), null, false);
+                        Interpreted.of(imported), sends(calculator, imported), List.of(), null, false, List.of());
             }
-            List<FieldChanges.Change> changes = FieldChanges.between(current, imported, FieldChanges.freeVariables(values));
-            if (current.getConfigHash().equals(hash) && changes.isEmpty()) {
+            Map<String, String> edited = current.getEditedInApp();
+            List<FieldChanges.Change> all = FieldChanges.between(current, imported, FieldChanges.freeVariables(values));
+            // Champ modifié à l'écran que le fichier n'a pas changé depuis : la valeur de l'application reste.
+            Set<String> keptByDefault = all.stream()
+                    .filter(c -> edited.containsKey(c.field())
+                            && Objects.equals(blankToNull(edited.get(c.field())), c.after()))
+                    .map(FieldChanges.Change::field).collect(Collectors.toSet());
+            List<FieldChanges.Change> changes = all.stream().filter(c -> !keptByDefault.contains(c.field())).toList();
+            if (changes.isEmpty()) {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.UNCHANGED, row.errors(),
-                        row.warnings(), Interpreted.of(imported), null, List.of(), null, false);
+                        row.warnings(), Interpreted.of(imported), null, List.of(), null, false, List.of());
             }
+            List<String> conflicts = changes.stream().map(FieldChanges.Change::field).filter(edited::containsKey)
+                    .toList();
+            Map<String, String> fileValues = new HashMap<>();
+            all.forEach(c -> fileValues.put(c.field(), c.after() == null ? "" : c.after()));
+            Map<String, String> cells = cellsByRow.get(row.rowNumber());
+            Merged merged = merge(current, cells, keptByDefault, calendar, today);
+            if (!merged.errors().isEmpty()) {
+                return new RowPreview(row.rowNumber(), row.businessId(), Action.REJECTED, merged.errors(),
+                        row.warnings(), null, null, List.of(), null, false, List.of());
+            }
+            imported = merged.rule();
+            validRules.put(row.rowNumber(), imported);
+            variables.put(row.rowNumber(), merged.values());
+            updates.put(row.rowNumber(), new Update(cells, keptByDefault, conflicts, fileValues));
             boolean closing = current.getStatus() == RuleStatus.ACTIVE && imported.status() == RuleStatus.CLOSED;
             List<String> warnings = new ArrayList<>(row.warnings());
             if (closing) {
@@ -177,7 +218,7 @@ public class ImportPreviewService {
                 impact = new SendImpact(diff.added(), diff.moved(), diff.cancelled());
             }
             return new RowPreview(row.rowNumber(), row.businessId(), Action.UPDATE, row.errors(), List.copyOf(warnings),
-                    Interpreted.of(imported), sends(calculator, imported), changes, impact, closing);
+                    Interpreted.of(imported), sends(calculator, imported), changes, impact, closing, conflicts);
         }).toList();
 
         Set<String> inFile = result.rows().stream().map(FileValidator.RowResult::businessId).collect(Collectors.toSet());
@@ -188,7 +229,28 @@ public class ImportPreviewService {
                 .toList();
 
         return new Analysis(new ImportPreview(fileName, List.of(), count(rows), rows, absent), validRules, hashes,
-                variables);
+                variables, updates);
+    }
+
+    /**
+     * Configuration du fichier dont les champs {@code keepApp} reprennent la valeur de l'application, revalidée comme
+     * une ligne du fichier (un mélange peut être incohérent, par exemple une date de fin avant la date de début).
+     */
+    static Merged merge(Rule current, Map<String, String> fileCells, Set<String> keepApp, BusinessCalendar calendar,
+            LocalDate today) {
+        Map<String, String> cells = new HashMap<>(fileCells);
+        Map<String, String> app = RuleCells.of(current);
+        keepApp.forEach(field -> cells.put(field, app.getOrDefault(field, "")));
+        RowValidation validation = new RowValidator(calendar).validate(cells, today);
+        if (!validation.errors().isEmpty()) {
+            return new Merged(null, Map.of(), validation.errors());
+        }
+        ImportedRule rule = validation.rule();
+        return new Merged(rule, MessageTemplate.valuesUsed(cells, rule.subject(), rule.body()), List.of());
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     /** Effet sur les envois d'une relance activée si on applique la ligne du fichier (rien n'est écrit). */
@@ -226,6 +288,7 @@ public class ImportPreviewService {
                         .mapToInt(r -> r.sends().planned()).sum(),
                 rows.stream().filter(r -> r.sendImpact() != null).mapToInt(r -> r.sendImpact().added()).sum(),
                 rows.stream().filter(r -> r.sendImpact() != null).mapToInt(r -> r.sendImpact().moved()).sum(),
-                rows.stream().filter(r -> r.sendImpact() != null).mapToInt(r -> r.sendImpact().cancelled()).sum());
+                rows.stream().filter(r -> r.sendImpact() != null).mapToInt(r -> r.sendImpact().cancelled()).sum(),
+                (int) rows.stream().filter(r -> !r.conflicts().isEmpty()).count());
     }
 }

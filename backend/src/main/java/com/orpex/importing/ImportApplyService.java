@@ -1,7 +1,11 @@
 package com.orpex.importing;
 
 import com.orpex.core.calendar.ScheduleCalculator;
+import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.importing.ImportPreviewService.AbsentRule;
+import com.orpex.importing.ImportPreviewService.Action;
+import com.orpex.importing.ImportPreviewService.Merged;
+import com.orpex.importing.ImportPreviewService.Update;
 import com.orpex.importing.ImportPreviewService.Analysis;
 import com.orpex.importing.ImportPreviewService.RowPreview;
 import com.orpex.holiday.HolidayService;
@@ -15,8 +19,13 @@ import com.orpex.rule.SendsDiff;
 import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -59,16 +68,37 @@ public class ImportApplyService {
         this.clock = clock;
     }
 
+    /** Choix pour un conflit : garder la valeur de l'application ou prendre celle du fichier. */
+    public enum Choice { APP, FILE }
+
+    /**
+     * {@code resolutions} : pour chaque id de ligne en conflit, le choix de chaque champ (tous obligatoires : jamais
+     * d'écrasement silencieux, spécification §9).
+     */
     @Transactional
-    public ImportResult apply(long ownerId, String fileName, InputStream content, boolean closeAbsent) {
+    public ImportResult apply(long ownerId, String fileName, InputStream content, boolean closeAbsent,
+            Map<String, Map<String, Choice>> resolutions) {
         Analysis analysis = analyser.analyse(ownerId, fileName, content);
         if (!analysis.preview().missingColumns().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le fichier ne peut pas être importé : "
                     + "colonnes obligatoires absentes (" + String.join(", ", analysis.preview().missingColumns()) + ").");
         }
 
+        List<String> unresolved = analysis.preview().rows().stream()
+                .filter(row -> row.action() == Action.UPDATE && !row.conflicts().isEmpty())
+                .flatMap(row -> row.conflicts().stream()
+                        .filter(field -> resolutions.getOrDefault(row.id(), Map.of()).get(field) == null)
+                        .map(field -> row.id() + " (" + field + ")"))
+                .toList();
+        if (!unresolved.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Conflits non tranchés : " + String.join(", ",
+                    unresolved) + ". Choisissez pour chacun la valeur à garder, puis confirmez à nouveau.");
+        }
+
         Instant now = clock.instant();
-        ScheduleCalculator calculator = new ScheduleCalculator(holidayService.businessCalendar());
+        BusinessCalendar calendar = holidayService.businessCalendar();
+        LocalDate today = LocalDate.now(clock);
+        ScheduleCalculator calculator = new ScheduleCalculator(calendar);
         int created = 0;
         int updated = 0;
         int unchanged = 0;
@@ -88,8 +118,21 @@ public class ImportApplyService {
                 case UPDATE -> {
                     Rule rule = rules.findByOwnerIdAndBusinessId(ownerId, row.id()).orElseThrow();
                     rule = rules.findForUpdateByIdAndOwnerId(rule.getId(), ownerId).orElseThrow();
-                    rule.apply(analysis.rules().get(row.rowNumber()), analysis.hashes().get(row.rowNumber()), now);
-                    rule.replaceVariables(analysis.variables().get(row.rowNumber()));
+                    Update update = analysis.updates().get(row.rowNumber());
+                    Map<String, Choice> choices = resolutions.getOrDefault(row.id(), Map.of());
+                    Set<String> keepApp = new HashSet<>(update.keptByDefault());
+                    update.conflicts().stream().filter(field -> choices.get(field) == Choice.APP).forEach(keepApp::add);
+                    Merged merged = ImportPreviewService.merge(rule, update.cells(), keepApp, calendar, today);
+                    if (!merged.errors().isEmpty()) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "Ligne " + row.rowNumber() + " ("
+                                + row.id() + ") : ces choix donnent une relance incohérente : "
+                                + String.join(" ; ", merged.errors()) + ".");
+                    }
+                    // Champs où l'application l'emporte : on retient la valeur du fichier écartée.
+                    Map<String, String> stillEdited = new LinkedHashMap<>();
+                    keepApp.forEach(field -> stillEdited.put(field, update.fileValues().getOrDefault(field, "")));
+                    rule.apply(merged.rule(), analysis.hashes().get(row.rowNumber()), stillEdited, now);
+                    rule.replaceVariables(merged.values());
                     if (rule.isActivated()) {
                         SendsDiff diff = rescheduler.diff(rule, calculator, now);
                         rescheduler.apply(rule, diff, now);

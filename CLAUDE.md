@@ -92,8 +92,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation.
   Modification à l'écran (`RuleEditService`, `PUT /api/rules/{id}`) : saisie validée par `RowValidator` comme une
   ligne du fichier, envois futurs recalculés, relance close non modifiable ; passage de la validation de oui à non
-  refusé (409) sans `confirmValidationDrop`. L'empreinte du dernier import est conservée ; les champs modifiés sont
-  retenus dans `rules.edited_in_app` (V11, vidé au ré-import) pour les conflits (7.3).
+  refusé (409) sans `confirmValidationDrop`. L'empreinte du dernier import est conservée ; pour chaque champ modifié,
+  `rules.edited_in_app` (V11) retient la valeur qu'avait le fichier (format de l'aperçu).
   Clôture (`ClosureService`, `POST /api/rules/{id}/close`) : statut clos, envois non commencés (`NOT_STARTED`)
   passés en `CANCELLED`, jamais supprimés ; pas de réouverture (non prévue par la spécification).
   Pauses (`SendingControlService`) : par relance (propriétaire, `/api/rules/{id}/pause|resume`) et générale
@@ -110,6 +110,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   aperçu champ par champ (`FieldChanges`) et impact sur les envois ; envois futurs non commencés des lignes activées
   recalculés (`RescheduleService.diff/apply`, `SendsDiff` : déplacés, annulés, ajoutés) ; `statut = clos` clôt le
   dossier ; dossiers absents du fichier listés, clos seulement si `closeAbsent=true` (case décochée par défaut).
+  Conflits (7.3) : champ modifié à l'écran que le fichier change aussi (valeur différente de celle retenue) ; tous
+  tranchés dans l'aperçu (`resolutions` JSON, `APP`/`FILE`), sinon 409. Un champ modifié à l'écran que le fichier
+  n'a pas changé garde la valeur de l'application, sans conflit ; mélange revalidé par `RowValidator`.
   Les lignes créées n'ont aucun envoi tant qu'elles ne sont pas activées.
   Modèle à télécharger : `GET /api/imports/template` (`core/importing/ImportTemplate`, exemples en `@example.org`).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le
