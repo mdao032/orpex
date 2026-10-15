@@ -147,8 +147,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Phases 0 à 5 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
-  planifiés, envoi réel des mails). Phase 6 : validation quotidienne.
+- Phases 0 à 6 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
+  planifiés, envoi réel des mails, validation quotidienne) : **jalon J1, prototype démontrable**. Phase 7 : ré-import.
   Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
