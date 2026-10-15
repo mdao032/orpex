@@ -34,6 +34,15 @@ public class ValidationController {
         return validation.today(currentUser.id(authentication));
     }
 
+    public record ReopenRequest(long sendId) {
+    }
+
+    /** Revenir sur sa décision du jour (avant l'heure limite) : l'envoi attend de nouveau sa validation. */
+    @PostMapping("/reopen")
+    public Pending reopen(@RequestBody ReopenRequest request, Authentication authentication) {
+        return validation.reopen(currentUser.id(authentication), request.sendId());
+    }
+
     @PostMapping
     public Decision decide(@RequestBody DecisionRequest request, Authentication authentication) {
         return validation.decide(currentUser.id(authentication),

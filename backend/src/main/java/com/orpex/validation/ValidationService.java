@@ -21,8 +21,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Validation quotidienne (spécification §7) : avec {@code validation_quotidienne = oui}, rien ne part sans que le
@@ -34,9 +36,16 @@ public class ValidationService {
 
     private static final Logger log = LoggerFactory.getLogger(ValidationService.class);
 
-    /** Une relance qui attend la validation du jour. */
+    /** Décision du jour sur un envoi. */
+    public enum DayDecision { PENDING, VALIDATED, UNCHECKED }
+
+    /**
+     * Une relance du jour concernée par la validation ; {@code open} : avant l'heure limite (validation, ou retour sur
+     * la décision, encore possibles).
+     */
     public record Pending(long sendId, long ruleId, String businessId, String caseReference, String recipientEmail,
-                          String subject, Instant scheduledAt, Instant cutoffAt, boolean open, long alreadySent) {
+                          String subject, Instant scheduledAt, Instant cutoffAt, boolean open, long alreadySent,
+                          DayDecision decision) {
     }
 
     /** Envois refusés : introuvables, déjà traités, pas d'aujourd'hui, ou heure limite passée. */
@@ -62,8 +71,7 @@ public class ValidationService {
     @Transactional(readOnly = true)
     public List<Pending> today(long ownerId) {
         Instant now = clock.instant();
-        List<Occurrence> awaiting = occurrences.findAwaitingValidation(ownerId, LocalDate.now(clock),
-                OccurrenceState.AWAITING_VALIDATION);
+        List<Occurrence> awaiting = occurrences.findForDailyValidation(ownerId, LocalDate.now(clock));
         Set<Long> ruleIds = awaiting.stream().map(Occurrence::getRuleId).collect(Collectors.toSet());
         Map<Long, Rule> byId = rules.findAllByOwnerIdOrderByBusinessIdAsc(ownerId).stream()
                 .filter(rule -> ruleIds.contains(rule.getId()))
@@ -72,9 +80,14 @@ public class ValidationService {
         return awaiting.stream().map(o -> {
             Rule rule = byId.get(o.getRuleId());
             Instant cutoffAt = o.getScheduledAt().minus(cutoff);
+            DayDecision decision = switch (o.getState()) {
+                case VALIDATED -> DayDecision.VALIDATED;
+                case NOT_VALIDATED -> DayDecision.UNCHECKED;
+                default -> DayDecision.PENDING;
+            };
             return new Pending(o.getId(), rule.getId(), rule.getBusinessId(), rule.getCaseReference(),
                     rule.getRecipientEmail(), rule.getSubject(), o.getScheduledAt(), cutoffAt, now.isBefore(cutoffAt),
-                    sent.getOrDefault(rule.getId(), 0L));
+                    sent.getOrDefault(rule.getId(), 0L), decision);
         }).toList();
     }
 
@@ -110,6 +123,33 @@ public class ValidationService {
         log.info("Validation du jour par l'utilisateur {} : validées {}, décochées {}, refusées {}", ownerId,
                 validatedIds, rejectedIds, refused.size());
         return new Decision(validatedIds.size(), rejectedIds.size(), refused);
+    }
+
+    /**
+     * Revenir sur sa décision du jour (validé ou décoché) : l'envoi attend de nouveau sa validation. Seulement le jour
+     * même et avant l'heure limite ; un envoi devenu « non validé » faute de validation reste définitif.
+     */
+    @Transactional
+    public Pending reopen(long ownerId, long sendId) {
+        Instant now = clock.instant();
+        Occurrence occurrence = occurrences.findById(sendId).orElse(null);
+        Rule rule = occurrence == null ? null : rules.findByIdAndOwnerId(occurrence.getRuleId(), ownerId).orElse(null);
+        if (occurrence == null || rule == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Envoi introuvable.");
+        }
+        if (!occurrence.isDecidedByOwner()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Aucune décision à reprendre sur cet envoi.");
+        }
+        if (!occurrence.getScheduledDate().equals(LocalDate.now(clock))
+                || !now.isBefore(occurrence.getScheduledAt().minus(cutoff))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Trop tard : l'heure limite de validation de cet envoi est passée.");
+        }
+        String before = occurrence.getState() == OccurrenceState.VALIDATED ? "validé" : "décoché";
+        occurrence.reopen(now);
+        log.info("Validation du jour : l'utilisateur {} revient sur sa décision ({}) pour l'envoi {} de la relance {}",
+                ownerId, before, sendId, rule.getBusinessId());
+        return today(ownerId).stream().filter(p -> p.sendId() == sendId).findFirst().orElseThrow();
     }
 
     private String refusalReason(Occurrence occurrence, Rule rule, LocalDate today, Instant now) {

@@ -156,6 +156,49 @@ class ValidationIT {
         verify(gateway, times(1)).send(any());
     }
 
+    @Test
+    void theOwnerCanChangeTheDecisionOfTheDayUntilTheCutoff() throws Exception {
+        long send = awaitingToday("VAL-8", "2 hours");
+        send(mvc, post("/api/validation").session(session), "{\"reject\":[" + send + "]}");
+        mvc.perform(get("/api/validation/today").session(session))
+                .andExpect(jsonPath("$[?(@.sendId == " + send + ")].decision").value("UNCHECKED"));
+
+        send(mvc, post("/api/validation/reopen").session(session), "{\"sendId\":" + send + "}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value("PENDING"));
+        Occurrence reopened = occurrences.findById(send).orElseThrow();
+        assertThat(reopened.getState()).isEqualTo(OccurrenceState.AWAITING_VALIDATION);
+        assertThat(reopened.getValidatedBy()).isNull();
+
+        send(mvc, post("/api/validation").session(session), "{\"validate\":[" + send + "]}");
+        send(mvc, post("/api/validation/reopen").session(session), "{\"sendId\":" + send + "}")
+                .andExpect(status().isOk());
+        assertThat(occurrences.findById(send).orElseThrow().getState())
+                .isEqualTo(OccurrenceState.AWAITING_VALIDATION);
+    }
+
+    @Test
+    void aDecisionCannotBeChangedAfterTheCutoffNorWhenNobodyDecided() throws Exception {
+        long tooLate = awaitingToday("VAL-9", "10 minutes");
+        jdbc.update("update occurrences set state = 'VALIDATED', validated_by = ?, validated_at = now() where id = ?",
+                owner, tooLate);
+        long expired = awaitingToday("VAL-10", "2 hours");
+        jdbc.update("update occurrences set state = 'NOT_VALIDATED' where id = ?", expired);
+        long mine = awaitingToday("VAL-11", "2 hours");
+        send(mvc, post("/api/validation").session(session), "{\"validate\":[" + mine + "]}");
+
+        send(mvc, post("/api/validation/reopen").session(session), "{\"sendId\":" + tooLate + "}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Trop tard : l'heure limite de validation de cet envoi est passée."));
+        send(mvc, post("/api/validation/reopen").session(session), "{\"sendId\":" + expired + "}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Aucune décision à reprendre sur cet envoi."));
+        send(mvc, post("/api/validation/reopen").session(login(mvc, "intrus-validation@test.local", PASSWORD)),
+                "{\"sendId\":" + mine + "}")
+                .andExpect(status().isNotFound());
+        assertThat(occurrences.findById(mine).orElseThrow().getState()).isEqualTo(OccurrenceState.VALIDATED);
+    }
+
     /** Envoi d'aujourd'hui en attente de validation, prévu dans {@code delay} (intervalle PostgreSQL). */
     private long awaitingToday(String businessId, String delay) {
         ImportedRule imported = new ImportedRule(businessId + "-" + System.nanoTime(), "dest@exemple.ml", null, null,

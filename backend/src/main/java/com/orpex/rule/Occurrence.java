@@ -121,6 +121,26 @@ public class Occurrence {
         this.updatedAt = now;
     }
 
+    /**
+     * Le propriétaire revient sur sa décision du jour (validé ou décoché) : l'envoi attend de nouveau sa validation.
+     * Un envoi « non validé » faute de validation à son heure n'est pas concerné (il n'a pas de validateur).
+     */
+    public void reopen(Instant now) {
+        if (!isDecidedByOwner()) {
+            throw new IllegalStateException("Envoi " + id + " : aucune décision à reprendre (état " + state + ")");
+        }
+        this.state = OccurrenceState.AWAITING_VALIDATION;
+        this.validatedBy = null;
+        this.validatedAt = null;
+        this.updatedAt = now;
+    }
+
+    /** Validé, ou décoché par le propriétaire (et non devenu « non validé » faute de validation). */
+    public boolean isDecidedByOwner() {
+        return state == OccurrenceState.VALIDATED
+                || (state == OccurrenceState.NOT_VALIDATED && validatedBy != null);
+    }
+
     private void requireAwaitingValidation() {
         if (state != OccurrenceState.AWAITING_VALIDATION) {
             throw new IllegalStateException("Envoi " + id + " : pas en attente de validation (état " + state + ")");

@@ -55,14 +55,19 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     int markExpiredAwaitingAsNotValidated(@Param("now") Instant now,
             @Param("awaiting") OccurrenceState awaiting, @Param("notValidated") OccurrenceState notValidated);
 
-    /** Envois du jour en attente de validation d'un propriétaire (lignes actives, non en pause). */
+    /**
+     * Envois du jour d'un propriétaire concernés par la validation (lignes actives, non en pause) : en attente, validés,
+     * ou décochés par lui (pas ceux devenus « non validés » faute de validation).
+     */
     @Query("""
             select o from Occurrence o, Rule r
             where r.id = o.ruleId and r.ownerId = :ownerId and r.status = com.orpex.core.importing.RuleStatus.ACTIVE
-              and r.paused = false and o.state = :awaiting and o.scheduledDate = :day
+              and r.paused = false and r.dailyValidation = true and o.scheduledDate = :day
+              and (o.state in (com.orpex.rule.OccurrenceState.AWAITING_VALIDATION,
+                               com.orpex.rule.OccurrenceState.VALIDATED)
+                   or (o.state = com.orpex.rule.OccurrenceState.NOT_VALIDATED and o.validatedBy is not null))
             order by o.scheduledAt, o.id""")
-    List<Occurrence> findAwaitingValidation(@Param("ownerId") long ownerId, @Param("day") LocalDate day,
-            @Param("awaiting") OccurrenceState awaiting);
+    List<Occurrence> findForDailyValidation(@Param("ownerId") long ownerId, @Param("day") LocalDate day);
 
     /** Nombre d'envois déjà partis, par ligne : « nombre de relances déjà envoyées » (spécification §7). */
     @Query("""
