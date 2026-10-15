@@ -32,6 +32,25 @@ export interface RowPreview {
   warnings: string[];
   interpreted: Interpreted | null;
   sends: { planned: number; first: string | null; last: string | null; missedToday: number } | null;
+  /** Ligne modifiée : champs qui changent (valeurs affichables, null = vide). */
+  changes: FieldChange[];
+  /** Ligne modifiée d'une relance activée : effet sur ses envois futurs. */
+  sendImpact: { added: number; moved: number; cancelled: number } | null;
+  /** Le fichier passe la relance au statut clos : elle sera close, ses envois à venir annulés. */
+  closing: boolean;
+}
+
+export interface FieldChange {
+  field: string;
+  before: string | null;
+  after: string | null;
+}
+
+/** Relance active du propriétaire dont l'id n'est pas dans le fichier. */
+export interface AbsentRule {
+  ruleId: number;
+  businessId: string;
+  subject: string;
 }
 
 export interface ImportPreview {
@@ -44,17 +63,25 @@ export interface ImportPreview {
     rejected: number;
     withWarnings: number;
     plannedSends: number;
+    sendsAdded: number;
+    sendsMoved: number;
+    sendsCancelled: number;
   };
   rows: RowPreview[];
+  absent: AbsentRule[];
 }
 
 export interface ImportResult {
   importId: number;
   fileName: string;
   created: number;
+  updated: number;
   unchanged: number;
-  notApplied: number;
   rejected: number;
+  closedAbsent: number;
+  sendsAdded: number;
+  sendsMoved: number;
+  sendsCancelled: number;
 }
 
 export interface ImportRecord {
@@ -80,8 +107,11 @@ export class ImportsApi {
     return firstValueFrom(this.http.post<ImportPreview>('/api/imports/preview', this.form(file)));
   }
 
-  apply(file: File): Promise<ImportResult> {
-    return firstValueFrom(this.http.post<ImportResult>('/api/imports', this.form(file)));
+  /** `closeAbsent` : clore aussi les relances actives absentes du fichier (choix explicite). */
+  apply(file: File, closeAbsent = false): Promise<ImportResult> {
+    const form = this.form(file);
+    form.append('closeAbsent', String(closeAbsent));
+    return firstValueFrom(this.http.post<ImportResult>('/api/imports', form));
   }
 
   history(): Promise<ImportRecord[]> {

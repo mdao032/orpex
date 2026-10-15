@@ -40,6 +40,49 @@ td .erreur {
   border-color: var(--orpex-accent);
 }
 
+.action-update .badge {
+  color: var(--orpex-accent);
+  border-color: var(--orpex-accent);
+}
+
+.badge.cloture {
+  margin-left: 0.25rem;
+  color: var(--orpex-danger);
+  border-color: var(--orpex-danger);
+}
+
+.changements {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.changements .champ {
+  font-family: monospace;
+}
+
+.changements .avant {
+  color: var(--orpex-ink-soft);
+  text-decoration: line-through;
+}
+
+.changements details p {
+  margin: 0.25rem 0;
+  white-space: pre-wrap;
+}
+
+.absents {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--orpex-line);
+  border-radius: 6px;
+}
+
+.absents h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
 .action-rejected .badge {
   color: var(--orpex-danger);
   border-color: var(--orpex-danger);

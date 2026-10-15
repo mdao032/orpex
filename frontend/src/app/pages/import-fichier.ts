@@ -1,13 +1,18 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi } from '../imports/imports-api';
+import {
+  FieldChange, ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi,
+} from '../imports/imports-api';
 import { apiErrorMessage } from '../shared/api-error';
 import { daysRange, scheduleLabel } from '../shared/schedule-label';
 import { InstallationTimePipe } from '../shared/installation-time';
 
+/** Au-delà, la valeur est proposée repliée (texte du message, par exemple). */
+const LONG_VALUE = 60;
+
 const ACTIONS: Record<ImportAction, string> = {
   CREATE: 'À créer',
-  UPDATE: 'Modifiée (non appliquée)',
+  UPDATE: 'À modifier',
   UNCHANGED: 'Inchangée',
   REJECTED: 'Rejetée',
 };
@@ -37,13 +42,19 @@ const ACTIONS: Record<ImportAction, string> = {
       <section class="bloc resultat" aria-labelledby="titre-resultat">
         <h2 id="titre-resultat">Import terminé : {{ r.fileName }}</h2>
         <p>
-          {{ r.created }} relance(s) créée(s), {{ r.unchanged }} inchangée(s), {{ r.rejected }} ligne(s) rejetée(s)@if (r.notApplied > 0) {,
-            {{ r.notApplied }} modification(s) non appliquée(s)}.
+          {{ r.created }} relance(s) créée(s), {{ r.updated }} modifiée(s), {{ r.unchanged }} inchangée(s),
+          {{ r.rejected }} ligne(s) rejetée(s)@if (r.closedAbsent > 0) {, {{ r.closedAbsent }} relance(s) absente(s)
+            du fichier close(s)}.
         </p>
-        <p>
-          Les relances créées n'envoient rien tant qu'elles ne sont pas activées :
-          <a routerLink="/lignes">voir et activer mes relances</a>.
-        </p>
+        @if (r.sendsAdded + r.sendsMoved + r.sendsCancelled > 0) {
+          <p>Envois à venir : {{ impact(r.sendsAdded, r.sendsMoved, r.sendsCancelled) }}.</p>
+        }
+        @if (r.created > 0) {
+          <p>
+            Les relances créées n'envoient rien tant qu'elles ne sont pas activées :
+            <a routerLink="/lignes">voir et activer mes relances</a>.
+          </p>
+        }
       </section>
     }
 
@@ -58,15 +69,19 @@ const ACTIONS: Record<ImportAction, string> = {
         } @else {
           <ul class="compteurs">
             <li><strong>{{ a.counts.toCreate }}</strong> à créer</li>
+            <li><strong>{{ a.counts.toUpdate }}</strong> à modifier</li>
             <li><strong>{{ a.counts.unchanged }}</strong> inchangée(s)</li>
             <li><strong>{{ a.counts.rejected }}</strong> rejetée(s)</li>
             <li><strong>{{ a.counts.withWarnings }}</strong> avec avertissement</li>
-            <li><strong>{{ a.counts.plannedSends }}</strong> envoi(s) prévu(s)</li>
           </ul>
-          @if (a.counts.toUpdate > 0) {
+          @if (a.counts.toCreate > 0) {
+            <p class="detail">Nouvelles relances : {{ a.counts.plannedSends }} envoi(s) prévu(s) une fois activées.</p>
+          }
+          @if (a.counts.sendsAdded + a.counts.sendsMoved + a.counts.sendsCancelled > 0) {
             <p class="info" role="note">
-              {{ a.counts.toUpdate }} relance(s) existante(s) diffèrent du fichier : elles ne seront pas modifiées
-              (la mise à jour par ré-import arrivera dans une prochaine version).
+              Relances déjà activées, envois à venir :
+              {{ impact(a.counts.sendsAdded, a.counts.sendsMoved, a.counts.sendsCancelled) }}. Les envois passés ne
+              changent pas.
             </p>
           }
 
@@ -85,7 +100,10 @@ const ACTIONS: Record<ImportAction, string> = {
                 <tr [class]="'action-' + ligne.action.toLowerCase()">
                   <td>{{ ligne.rowNumber }}</td>
                   <td>{{ ligne.id || '—' }}</td>
-                  <td><span class="badge">{{ libelleAction(ligne.action) }}</span></td>
+                  <td>
+                    <span class="badge">{{ libelleAction(ligne.action) }}</span>
+                    @if (ligne.closing) { <span class="badge cloture">Sera close</span> }
+                  </td>
                   <td>
                     @if (ligne.interpreted; as i) {
                       <div><strong>{{ i.email }}</strong> — {{ i.subject }}</div>
@@ -95,6 +113,25 @@ const ACTIONS: Record<ImportAction, string> = {
                         @if (i.status === 'CLOSED') { — statut clos }
                       </div>
                     }
+                    @if (ligne.changes.length > 0) {
+                      <ul class="changements" aria-label="Champs modifiés">
+                        @for (c of ligne.changes; track c.field) {
+                          <li>
+                            <span class="champ">{{ c.field }}</span> :
+                            @if (estLong(c)) {
+                              modifié
+                              <details>
+                                <summary>Voir l'ancienne et la nouvelle valeur</summary>
+                                <p class="avant">Avant : {{ c.before ?? '(vide)' }}</p>
+                                <p>Après : {{ c.after ?? '(vide)' }}</p>
+                              </details>
+                            } @else {
+                              <span class="avant">{{ c.before ?? '(vide)' }}</span> → {{ c.after ?? '(vide)' }}
+                            }
+                          </li>
+                        }
+                      </ul>
+                    }
                     @for (erreur of ligne.errors; track erreur) {
                       <div class="erreur">{{ erreur }}</div>
                     }
@@ -103,7 +140,17 @@ const ACTIONS: Record<ImportAction, string> = {
                     }
                   </td>
                   <td>
-                    @if (ligne.sends; as e) {
+                    @if (ligne.action === 'UPDATE') {
+                      @if (ligne.sendImpact; as s) {
+                        @if (s.added + s.moved + s.cancelled > 0) {
+                          {{ impact(s.added, s.moved, s.cancelled) }}
+                        } @else {
+                          Envois à venir inchangés
+                        }
+                      } @else {
+                        <span class="detail">Pas encore activée : aucun envoi</span>
+                      }
+                    } @else if (ligne.sends; as e) {
                       @if (e.planned > 0) {
                         {{ e.planned }} envoi(s)<br />
                         <span class="detail">{{ jours(e.first, e.last) }}</span>
@@ -120,9 +167,26 @@ const ACTIONS: Record<ImportAction, string> = {
             </tbody>
           </table>
 
+          @if (a.absent.length > 0) {
+            <div class="absents">
+              <h3>Relances actives absentes du fichier</h3>
+              <p class="detail">Par défaut, elles ne changent pas.</p>
+              <ul>
+                @for (r of a.absent; track r.ruleId) {
+                  <li><a [routerLink]="['/lignes', r.ruleId]">{{ r.businessId }}</a> — {{ r.subject }}</li>
+                }
+              </ul>
+              <label>
+                <input type="checkbox" [checked]="clore()" (change)="clore.set($any($event.target).checked)"
+                       [disabled]="enCours()" />
+                Clore ces {{ a.absent.length }} relance(s) : leurs envois à venir seront annulés
+              </label>
+            </div>
+          }
+
           <div class="confirmation">
-            <button type="submit" (click)="confirmer()" [disabled]="enCours() || a.counts.toCreate === 0">
-              Confirmer l'import ({{ a.counts.toCreate }} relance(s) à créer)
+            <button type="submit" (click)="confirmer()" [disabled]="enCours() || !aAppliquer(a)">
+              Confirmer l'import ({{ resume(a) }})
             </button>
             <button type="button" (click)="annuler()" [disabled]="enCours()">Annuler</button>
           </div>
@@ -137,7 +201,7 @@ const ACTIONS: Record<ImportAction, string> = {
           @for (h of historique(); track h.id) {
             <li>
               {{ h.createdAt | heure: 'dd/MM/yyyy HH:mm' }} — {{ h.fileName }} : {{ h.created }} créée(s),
-              {{ h.unchanged }} inchangée(s), {{ h.rejected }} rejetée(s)
+              {{ h.updated }} modifiée(s), {{ h.unchanged }} inchangée(s), {{ h.rejected }} rejetée(s)
               @if (h.summary) { <span class="detail">({{ h.summary }})</span> }
             </li>
           }
@@ -155,6 +219,8 @@ export class ImportFichier implements OnInit {
   protected readonly historique = signal<ImportRecord[]>([]);
   protected readonly message = signal<{ texte: string; erreur: boolean } | null>(null);
   protected readonly enCours = signal(false);
+  /** Clore les relances absentes du fichier : décoché par défaut, choix explicite. */
+  protected readonly clore = signal(false);
 
   protected readonly calendrier = scheduleLabel;
   protected readonly jours = daysRange;
@@ -167,11 +233,34 @@ export class ImportFichier implements OnInit {
     return ACTIONS[action];
   }
 
+  protected estLong(change: FieldChange): boolean {
+    return (change.before?.length ?? 0) > LONG_VALUE || (change.after?.length ?? 0) > LONG_VALUE;
+  }
+
+  protected impact(added: number, moved: number, cancelled: number): string {
+    const parts: string[] = [];
+    if (moved > 0) parts.push(`${moved} déplacé(s)`);
+    if (cancelled > 0) parts.push(`${cancelled} annulé(s)`);
+    if (added > 0) parts.push(`${added} ajouté(s)`);
+    return parts.join(', ');
+  }
+
+  protected aAppliquer(a: ImportPreview): boolean {
+    return a.counts.toCreate + a.counts.toUpdate > 0 || (this.clore() && a.absent.length > 0);
+  }
+
+  protected resume(a: ImportPreview): string {
+    const parts = [`${a.counts.toCreate} à créer`, `${a.counts.toUpdate} à modifier`];
+    if (this.clore() && a.absent.length > 0) parts.push(`${a.absent.length} à clore`);
+    return parts.join(', ');
+  }
+
   protected async choisir(fichiers: FileList | null): Promise<void> {
     const fichier = fichiers?.item(0) ?? null;
     this.resultat.set(null);
     this.apercu.set(null);
     this.message.set(null);
+    this.clore.set(false);
     this.fichier.set(fichier);
     if (!fichier) {
       return;
@@ -193,7 +282,7 @@ export class ImportFichier implements OnInit {
     }
     this.enCours.set(true);
     try {
-      this.resultat.set(await this.api.apply(fichier));
+      this.resultat.set(await this.api.apply(fichier, this.clore()));
       this.apercu.set(null);
       this.fichier.set(null);
       await this.rechargerHistorique();
