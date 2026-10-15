@@ -96,6 +96,23 @@ public class Occurrence {
     }
 
     /**
+     * Configuration de la ligne modifiée (ré-import) : nouvelle heure d'envoi et/ou nouvel état d'attente (validation
+     * ajoutée ou retirée). Seulement pour un envoi non commencé ; quitter « validé » efface la validation.
+     */
+    public void moveTo(Instant newScheduledAt, OccurrenceState waitingState, Instant now) {
+        if (!OccurrenceState.NOT_STARTED.contains(state) || !OccurrenceState.NOT_STARTED.contains(waitingState)) {
+            throw new IllegalStateException("Envoi " + id + " : ne peut pas être replanifié (état " + state + ")");
+        }
+        if (state == OccurrenceState.VALIDATED && waitingState != OccurrenceState.VALIDATED) {
+            this.validatedBy = null;
+            this.validatedAt = null;
+        }
+        this.scheduledAt = newScheduledAt;
+        this.state = waitingState;
+        this.updatedAt = now;
+    }
+
+    /**
      * Le jour redevient un jour d'envoi (jour férié retiré) : un envoi annulé reprend, puisqu'un envoi ne peut exister
      * qu'une fois par ligne et par jour.
      */

@@ -101,8 +101,11 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   méthodes filtrées par propriétaire (`...ByOwnerId...`) : **ne jamais ajouter de `findAll`/`findById` non filtré**.
 - `backend/.../importing/` : `ImportPreviewService` (`POST /api/imports/preview`, multipart `file`, 5 Mo max) lit,
   valide, compare à la base (créer / modifier / inchangée / rejetée) et calcule les envois, **sans rien écrire** ;
-  la confirmation (`POST /api/imports`, même fichier, même analyse) crée les nouvelles lignes en une transaction et
-  enregistre l'import ; une ligne existante modifiée est comptée « non appliquée » (mise à jour : phase 7).
+  la confirmation (`POST /api/imports`, même fichier, même analyse) applique tout en une transaction et enregistre
+  l'import. Ré-import (`ImportApplyService`) : ligne existante modifiée (configuration ou colonnes libres) mise à jour,
+  aperçu champ par champ (`FieldChanges`) et impact sur les envois ; envois futurs non commencés des lignes activées
+  recalculés (`RescheduleService.diff/apply`, `SendsDiff` : déplacés, annulés, ajoutés) ; `statut = clos` clôt le
+  dossier ; dossiers absents du fichier listés, clos seulement si `closeAbsent=true` (case décochée par défaut).
   Les lignes créées n'ont aucun envoi tant qu'elles ne sont pas activées.
   Modèle à télécharger : `GET /api/imports/template` (`core/importing/ImportTemplate`, exemples en `@example.org`).
 - `frontend/src/app/auth/` : service `Auth` (utilisateur via `/api/me`, interrogé au démarrage, ce qui fournit aussi le

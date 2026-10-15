@@ -2,13 +2,11 @@ package com.orpex.rule;
 
 import com.orpex.core.calendar.BusinessCalendar;
 import com.orpex.core.calendar.ScheduleCalculator;
+import com.orpex.core.importing.RuleStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,14 +14,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Recalcul des envois futurs après un changement des jours fériés (décision Q10 : automatique). Pour chaque ligne
- * activée, non close, en jours ouvrés uniquement :
- * <ul>
- *   <li>un envoi non commencé, encore à venir, sur un jour qui n'est plus un jour d'envoi → annulé ;</li>
- *   <li>un jour d'envoi à venir sans envoi → envoi créé, ou envoi annulé de ce jour repris ;</li>
- *   <li>rien dans le passé : envoyé, manqué, en échec, ou envoi du jour dont l'heure est passée, ne change pas.</li>
- * </ul>
- * Le report d'une échéance non ouvrée au jour ouvré précédent découle du même calcul qu'à l'activation.
+ * Mise en accord des envois futurs d'une ligne activée avec sa configuration ({@link SendsDiff}) : après un changement
+ * des jours fériés (décision Q10), ou d'une ligne (ré-import). Le passé n'est jamais touché.
  */
 @Service
 public class RescheduleService {
@@ -52,45 +44,44 @@ public class RescheduleService {
         int cancelled = 0;
         int added = 0;
         for (Rule rule : rules.findAllDependingOnHolidays()) {
-            Set<LocalDate> wanted = calculator.sendDates(rule.scheduling()).stream()
-                    .filter(day -> at(rule, day).isAfter(now))
-                    .collect(Collectors.toSet());
-            Map<LocalDate, Occurrence> existing = occurrences.findAllByRuleIdOrderByScheduledDateAsc(rule.getId())
-                    .stream().collect(Collectors.toMap(Occurrence::getScheduledDate, Function.identity()));
-            OccurrenceState upcoming = rule.isDailyValidation()
-                    ? OccurrenceState.AWAITING_VALIDATION : OccurrenceState.PLANNED;
-
-            int ruleCancelled = 0;
-            int ruleAdded = 0;
-            for (Occurrence occurrence : existing.values()) {
-                boolean stillToCome = occurrence.getScheduledAt().isAfter(now);
-                if (stillToCome && OccurrenceState.NOT_STARTED.contains(occurrence.getState())
-                        && !wanted.contains(occurrence.getScheduledDate())) {
-                    occurrence.cancel(now);
-                    ruleCancelled++;
-                }
-            }
-            for (LocalDate day : wanted) {
-                Occurrence occurrence = existing.get(day);
-                if (occurrence == null) {
-                    occurrences.save(new Occurrence(rule.getId(), day, at(rule, day), upcoming, rule.getOwnerId(),
-                            now));
-                    ruleAdded++;
-                } else if (occurrence.getState() == OccurrenceState.CANCELLED) {
-                    occurrence.revive(upcoming, now);
-                    ruleAdded++;
-                }
-            }
-            if (ruleCancelled + ruleAdded > 0) {
+            SendsDiff diff = diff(rule, calculator, now);
+            if (!diff.isEmpty()) {
+                apply(rule, diff, now);
                 changedRules++;
-                cancelled += ruleCancelled;
-                added += ruleAdded;
+                cancelled += diff.cancelled();
+                added += diff.added();
                 // Traçabilité en attendant le journal d'audit (phase 8).
                 log.info("Recalcul ({}) de la relance {} (id {}, propriétaire {}) : {} envoi(s) annulé(s), {} ajouté(s)",
-                        reason, rule.getBusinessId(), rule.getId(), rule.getOwnerId(), ruleCancelled, ruleAdded);
+                        reason, rule.getBusinessId(), rule.getId(), rule.getOwnerId(), diff.cancelled(), diff.added());
             }
         }
         return new Rescheduled(changedRules, cancelled, added);
+    }
+
+    /** Écart pour la configuration actuelle de la ligne (rien n'est écrit). */
+    public SendsDiff diff(Rule rule, ScheduleCalculator calculator, Instant now) {
+        List<Occurrence> existing = occurrences.findAllByRuleIdOrderByScheduledDateAsc(rule.getId());
+        if (rule.getStatus() == RuleStatus.CLOSED) {
+            List<Occurrence> toCancel = existing.stream()
+                    .filter(o -> OccurrenceState.NOT_STARTED.contains(o.getState())).toList();
+            return new SendsDiff(toCancel, List.of(), List.of(), List.of());
+        }
+        OccurrenceState upcoming = rule.isDailyValidation()
+                ? OccurrenceState.AWAITING_VALIDATION : OccurrenceState.PLANNED;
+        return SendsDiff.compute(existing, calculator.sendDates(rule.scheduling()), day -> at(rule, day), upcoming, now);
+    }
+
+    /** Applique l'écart (dans la transaction de l'appelant). */
+    public void apply(Rule rule, SendsDiff diff, Instant now) {
+        OccurrenceState upcoming = rule.isDailyValidation()
+                ? OccurrenceState.AWAITING_VALIDATION : OccurrenceState.PLANNED;
+        diff.toCancel().forEach(occurrence -> occurrence.cancel(now));
+        diff.toRevive().forEach(occurrence -> occurrence.revive(upcoming, now));
+        diff.toMove().forEach(occurrence -> occurrence.moveTo(at(rule, occurrence.getScheduledDate()),
+                SendsDiff.waitingState(occurrence.getState(), upcoming), now));
+        for (LocalDate day : diff.toCreate()) {
+            occurrences.save(new Occurrence(rule.getId(), day, at(rule, day), upcoming, rule.getOwnerId(), now));
+        }
     }
 
     private Instant at(Rule rule, LocalDate day) {

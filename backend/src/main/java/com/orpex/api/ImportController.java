@@ -23,6 +23,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -88,13 +89,18 @@ public class ImportController {
         }
     }
 
-    /** Confirmation : le même fichier que l'aperçu, réanalysé puis appliqué en une transaction. */
+    /**
+     * Confirmation : le même fichier que l'aperçu, réanalysé puis appliqué en une transaction ; {@code closeAbsent} :
+     * clore aussi les relances absentes du fichier (non par défaut).
+     */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    public ImportResult apply(@RequestPart("file") MultipartFile file, Authentication authentication) {
+    public ImportResult apply(@RequestPart("file") MultipartFile file,
+            @RequestParam(name = "closeAbsent", defaultValue = "false") boolean closeAbsent,
+            Authentication authentication) {
         long ownerId = currentUser.id(authentication);
         try (InputStream content = open(file)) {
-            return applyService.apply(ownerId, fileName(file), content);
+            return applyService.apply(ownerId, fileName(file), content, closeAbsent);
         } catch (IOException e) {
             throw unreadable(e);
         }

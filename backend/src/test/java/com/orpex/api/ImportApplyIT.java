@@ -65,7 +65,7 @@ class ImportApplyIT {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.created").value(2))
                 .andExpect(jsonPath("$.rejected").value(1))
-                .andExpect(jsonPath("$.notApplied").value(0));
+                .andExpect(jsonPath("$.updated").value(0));
 
         assertThat(rules.findAllByOwnerIdOrderByBusinessIdAsc(owner))
                 .extracting(r -> r.getBusinessId()).containsExactly("A-1", "A-2");
@@ -97,7 +97,7 @@ class ImportApplyIT {
     }
 
     @Test
-    void anExistingRowWithADifferentConfigurationIsNeverOverwritten() throws Exception {
+    void anExistingRowWithADifferentConfigurationIsUpdatedFromTheFile() throws Exception {
         long owner = user("prudent@test.local");
         MockHttpSession session = login(mvc, "prudent@test.local", PASSWORD);
         apply(session, "v1.xlsx", xlsx(ALL_COLUMNS, periodRow("C-1", "a@exemple.ml", "2027-05-03", "2027-05-07")));
@@ -105,12 +105,13 @@ class ImportApplyIT {
 
         apply(session, "v2.xlsx", xlsx(ALL_COLUMNS, periodRow("C-1", "autre@exemple.ml", "2027-05-03", "2027-05-07")))
                 .andExpect(jsonPath("$.created").value(0))
-                .andExpect(jsonPath("$.notApplied").value(1));
+                .andExpect(jsonPath("$.updated").value(1));
 
-        var unchanged = rules.findByOwnerIdAndBusinessId(owner, "C-1").orElseThrow();
-        assertThat(unchanged.getRecipientEmail()).isEqualTo("a@exemple.ml");
-        assertThat(unchanged.getConfigHash()).isEqualTo(hashBefore);
+        var updated = rules.findByOwnerIdAndBusinessId(owner, "C-1").orElseThrow();
+        assertThat(updated.getRecipientEmail()).isEqualTo("autre@exemple.ml");
+        assertThat(updated.getConfigHash()).isNotEqualTo(hashBefore);
         mvc.perform(get("/api/imports").session(session))
+                .andExpect(jsonPath("$[0].updated").value(1))
                 .andExpect(jsonPath("$[0].summary", containsString("C-1")));
     }
 

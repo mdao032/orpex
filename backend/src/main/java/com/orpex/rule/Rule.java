@@ -153,6 +153,16 @@ public class Rule {
         return values;
     }
 
+    /** Valeurs des variables relevées au dernier import (colonnes libres comprises). */
+    public Map<String, String> getVariables() {
+        return Map.copyOf(variables);
+    }
+
+    /** Ré-import : nouvelles valeurs des variables relevées dans la ligne du fichier. */
+    public void replaceVariables(Map<String, String> values) {
+        this.variables = new LinkedHashMap<>(values);
+    }
+
     private static void putIfPresent(Map<String, String> values, String name, String value) {
         if (value != null && !value.isBlank()) {
             values.put(name, value);
