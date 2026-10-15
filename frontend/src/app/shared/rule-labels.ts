@@ -148,3 +148,12 @@ export function sendProblem(
 export function testSendProblem(issue: SendIssue | null, detail: string | null): string {
   return issue ? FINAL[issue] : `L'envoi de test n'est pas parti : ${detail ?? 'erreur inconnue'}.`;
 }
+
+/** Effet d'une modification sur les envois à venir, par exemple « 4 déplacé(s), 1 annulé(s) » ; vide si aucun. */
+export function sendImpactLabel(added: number, moved: number, cancelled: number): string {
+  const parts: string[] = [];
+  if (moved > 0) parts.push(`${moved} déplacé(s)`);
+  if (cancelled > 0) parts.push(`${cancelled} annulé(s)`);
+  if (added > 0) parts.push(`${added} ajouté(s)`);
+  return parts.join(', ');
+}

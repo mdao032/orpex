@@ -47,6 +47,24 @@ export interface RuleDetail {
   maxAttempts: number;
 }
 
+/** Nouvelle configuration d'une relance (heure HH:mm, dates AAAA-MM-JJ). */
+export interface RuleEdit extends Schedule {
+  email: string;
+  firstName: string;
+  lastName: string;
+  caseReference: string;
+  subject: string;
+  body: string;
+  dailyValidation: boolean;
+}
+
+export interface EditResult {
+  changes: { field: string; before: string | null; after: string | null }[];
+  sendsAdded: number;
+  sendsMoved: number;
+  sendsCancelled: number;
+}
+
 export interface ActivationResult {
   ruleId: number;
   businessId: string;
@@ -86,6 +104,14 @@ export class RulesApi {
   /** Rendu exact de la relance, envoyé à l'utilisateur connecté ; aucun envoi planifié n'est touché. */
   sendToMyself(id: number): Promise<TestSendResult> {
     return firstValueFrom(this.http.post<TestSendResult>(`/api/rules/${id}/test-send`, null));
+  }
+
+  /**
+   * Modifie la configuration ; ses envois à venir sont recalculés. `confirmValidationDrop` : l'utilisateur a confirmé
+   * le passage de la validation quotidienne de oui à non.
+   */
+  edit(id: number, edit: RuleEdit, confirmValidationDrop: boolean): Promise<EditResult> {
+    return firstValueFrom(this.http.put<EditResult>(`/api/rules/${id}`, { ...edit, confirmValidationDrop }));
   }
 
   /** Crée les envois de la relance. */

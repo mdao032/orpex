@@ -4,6 +4,7 @@ import {
   FieldChange, ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi,
 } from '../imports/imports-api';
 import { apiErrorMessage } from '../shared/api-error';
+import { sendImpactLabel } from '../shared/rule-labels';
 import { daysRange, scheduleLabel } from '../shared/schedule-label';
 import { InstallationTimePipe } from '../shared/installation-time';
 
@@ -237,13 +238,7 @@ export class ImportFichier implements OnInit {
     return (change.before?.length ?? 0) > LONG_VALUE || (change.after?.length ?? 0) > LONG_VALUE;
   }
 
-  protected impact(added: number, moved: number, cancelled: number): string {
-    const parts: string[] = [];
-    if (moved > 0) parts.push(`${moved} déplacé(s)`);
-    if (cancelled > 0) parts.push(`${cancelled} annulé(s)`);
-    if (added > 0) parts.push(`${added} ajouté(s)`);
-    return parts.join(', ');
-  }
+  protected readonly impact = sendImpactLabel;
 
   protected aAppliquer(a: ImportPreview): boolean {
     return a.counts.toCreate + a.counts.toUpdate > 0 || (this.clore() && a.absent.length > 0);

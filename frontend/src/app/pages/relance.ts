@@ -18,13 +18,14 @@ import {
 } from '../shared/rule-labels';
 import { frenchDate, scheduleLabel } from '../shared/schedule-label';
 import { InstallationTimePipe, formatInZone } from '../shared/installation-time';
+import { RelanceModification } from './relance-modification';
 
 /** Envois encore à venir (ni partis, ni abandonnés). */
 const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATED'];
 
 @Component({
   selector: 'app-relance',
-  imports: [RouterLink, InstallationTimePipe],
+  imports: [RouterLink, InstallationTimePipe, RelanceModification],
   styleUrls: ['../shared/page.scss', './import-fichier.scss', './relance.scss'],
   template: `
     <p><a routerLink="/lignes">← Toutes les relances</a></p>
@@ -46,6 +47,11 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
               {{ d.rule.paused ? 'Reprendre' : 'Mettre en pause' }}
             </button>
           }
+          @if (d.rule.status === 'ACTIVE' && !modification()) {
+            <button type="button" (click)="modification.set(true); message.set(null)" [disabled]="enCours()">
+              Modifier
+            </button>
+          }
           @if (d.rule.status === 'ACTIVE') {
             <button type="button" (click)="clore()" [disabled]="enCours()">Clore ce dossier</button>
           }
@@ -56,6 +62,10 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
         <p [class]="m.erreur ? 'erreur' : 'info'" [attr.role]="m.erreur ? 'alert' : 'status'">{{ m.texte }}</p>
       }
 
+      @if (modification()) {
+        <app-relance-modification [detail]="d" (enregistre)="apresModification($event)"
+                                  (annule)="modification.set(false)" />
+      } @else {
       <section class="bloc" aria-labelledby="titre-message">
         <h2 id="titre-message">Message</h2>
         <dl class="fiche">
@@ -84,6 +94,7 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
           <p class="prevision">{{ prevision(f) }}</p>
         }
       </section>
+      }
 
       <section class="bloc" aria-labelledby="titre-envois">
         <h2 id="titre-envois">Envois</h2>
@@ -159,6 +170,7 @@ export class Relance implements OnInit {
   protected readonly erreur = signal<string | null>(null);
   protected readonly message = signal<{ texte: string; erreur: boolean } | null>(null);
   protected readonly enCours = signal(false);
+  protected readonly modification = signal(false);
 
   protected readonly calendrier = scheduleLabel;
   protected readonly prevision = forecastLabel;
@@ -232,6 +244,11 @@ export class Relance implements OnInit {
       await this.api.resolveToCheck(this.id, sendId, parti);
       return parti ? 'Envoi marqué « Envoyé ».' : 'Envoi marqué « Échec » (non parti).';
     });
+  }
+
+  protected async apresModification(texte: string): Promise<void> {
+    this.modification.set(false);
+    await this.executer(async () => texte);
   }
 
   protected async clore(): Promise<void> {
