@@ -15,6 +15,9 @@ import com.orpex.rule.Occurrence;
 import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
+import com.orpex.rule.RuleEditService;
+import com.orpex.rule.RuleEditService.Edit;
+import com.orpex.rule.RuleEditService.EditResult;
 import com.orpex.rule.RuleRepository;
 import com.orpex.rule.SendIssue;
 import com.orpex.rule.SendingControlService;
@@ -33,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -88,12 +92,13 @@ public class RuleController {
     private final SendingControlService sendingControl;
     private final ToCheckService toCheck;
     private final TestSendService testSend;
+    private final RuleEditService editService;
     private final CurrentUser currentUser;
 
     public RuleController(RuleRepository rules, OrpexProperties properties, OccurrenceRepository occurrences,
             ActivationService activationService,
             ClosureService closureService, SendingControlService sendingControl, ToCheckService toCheck,
-            TestSendService testSend, CurrentUser currentUser) {
+            TestSendService testSend, RuleEditService editService, CurrentUser currentUser) {
         this.rules = rules;
         this.properties = properties;
         this.occurrences = occurrences;
@@ -102,7 +107,26 @@ public class RuleController {
         this.sendingControl = sendingControl;
         this.toCheck = toCheck;
         this.testSend = testSend;
+        this.editService = editService;
         this.currentUser = currentUser;
+    }
+
+    /** Nouvelle configuration ; {@code confirmValidationDrop} : passage de la validation quotidienne de oui à non confirmé. */
+    public record EditRequest(String email, String firstName, String lastName, String caseReference, String subject,
+                              String body, SendMode sendMode, LocalDate sendDate, LocalDate dueDate,
+                              Integer daysBefore, LocalDate startDate, LocalDate endDate, LocalTime sendTime,
+                              Boolean businessDaysOnly, Boolean dailyValidation, Boolean confirmValidationDrop) {
+    }
+
+    /** Modifie la configuration de la relance ; ses envois futurs non commencés sont recalculés. */
+    @PutMapping("/{id}")
+    public EditResult edit(@PathVariable long id, @RequestBody EditRequest request, Authentication authentication) {
+        Edit edit = new Edit(request.email(), request.firstName(), request.lastName(), request.caseReference(),
+                request.subject(), request.body(), request.sendMode(), request.sendDate(), request.dueDate(),
+                request.daysBefore(), request.startDate(), request.endDate(), request.sendTime(),
+                request.businessDaysOnly(), request.dailyValidation());
+        return editService.edit(currentUser.id(authentication), id, edit,
+                Boolean.TRUE.equals(request.confirmValidationDrop()));
     }
 
     /** Rendu exact de la relance envoyé à l'utilisateur connecté ; aucun envoi planifié n'est touché. */

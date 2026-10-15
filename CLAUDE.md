@@ -90,6 +90,10 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   et `ImportRecord` (`imports`). Activation **par bouton** (`ActivationService`, `POST /api/rules/{id}/activate`,
   `/activate-all`) : crée les envois (`PLANNED`, ou `AWAITING_VALIDATION` si validation quotidienne ; `MISSED` pour
   l'envoi du jour dont l'heure est passée), verrou de ligne contre la double activation.
+  Modification à l'écran (`RuleEditService`, `PUT /api/rules/{id}`) : saisie validée par `RowValidator` comme une
+  ligne du fichier, envois futurs recalculés, relance close non modifiable ; passage de la validation de oui à non
+  refusé (409) sans `confirmValidationDrop`. L'empreinte du dernier import est conservée ; les champs modifiés sont
+  retenus dans `rules.edited_in_app` (V11, vidé au ré-import) pour les conflits (7.3).
   Clôture (`ClosureService`, `POST /api/rules/{id}/close`) : statut clos, envois non commencés (`NOT_STARTED`)
   passés en `CANCELLED`, jamais supprimés ; pas de réouverture (non prévue par la spécification).
   Pauses (`SendingControlService`) : par relance (propriétaire, `/api/rules/{id}/pause|resume`) et générale

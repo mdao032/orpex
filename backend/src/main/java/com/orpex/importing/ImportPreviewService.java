@@ -12,6 +12,7 @@ import com.orpex.core.importing.RuleStatus;
 import com.orpex.core.importing.XlsxReader;
 import com.orpex.core.mail.MessageTemplate;
 import com.orpex.holiday.HolidayService;
+import com.orpex.rule.FieldChanges;
 import com.orpex.rule.OccurrenceRepository;
 import com.orpex.rule.OccurrenceState;
 import com.orpex.rule.Rule;
@@ -41,9 +42,6 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @Service
 public class ImportPreviewService {
-
-    /** Variables standard : leurs valeurs sont des colonnes de configuration, déjà couvertes par l'empreinte. */
-    private static final Set<String> STANDARD_VARIABLES = Set.of("id", "email", "prenom", "nom", "reference_dossier");
 
     public enum Action { CREATE, UPDATE, UNCHANGED, REJECTED }
 
@@ -160,7 +158,7 @@ public class ImportPreviewService {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.CREATE, row.errors(), row.warnings(),
                         Interpreted.of(imported), sends(calculator, imported), List.of(), null, false);
             }
-            List<FieldChanges.Change> changes = FieldChanges.between(current, imported, freeVariables(values));
+            List<FieldChanges.Change> changes = FieldChanges.between(current, imported, FieldChanges.freeVariables(values));
             if (current.getConfigHash().equals(hash) && changes.isEmpty()) {
                 return new RowPreview(row.rowNumber(), row.businessId(), Action.UNCHANGED, row.errors(),
                         row.warnings(), Interpreted.of(imported), null, List.of(), null, false);
@@ -191,12 +189,6 @@ public class ImportPreviewService {
 
         return new Analysis(new ImportPreview(fileName, List.of(), count(rows), rows, absent), validRules, hashes,
                 variables);
-    }
-
-    /** Valeurs des colonnes libres utilisées comme variables (les autres sont couvertes par l'empreinte). */
-    static Map<String, String> freeVariables(Map<String, String> values) {
-        return values.entrySet().stream().filter(e -> !STANDARD_VARIABLES.contains(e.getKey()))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     /** Effet sur les envois d'une relance activée si on applique la ligne du fichier (rien n'est écrit). */

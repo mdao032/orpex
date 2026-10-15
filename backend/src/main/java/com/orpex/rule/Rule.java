@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -112,6 +113,14 @@ public class Rule {
     @Column(nullable = false, columnDefinition = "text")
     private Map<String, String> variables = new LinkedHashMap<>();
 
+    /**
+     * Champs modifiés à l'écran depuis le dernier import (nom de colonne → valeur saisie) : de quoi signaler un conflit
+     * si un ré-import propose une autre valeur (spécification §9).
+     */
+    @Convert(converter = StringMapJsonConverter.class)
+    @Column(name = "edited_in_app", nullable = false, columnDefinition = "text")
+    private Map<String, String> editedInApp = new LinkedHashMap<>();
+
     /** Activation par l'utilisateur (bouton) : avant, aucun envoi n'existe pour cette ligne. */
     @Column(name = "activated_at")
     private Instant activatedAt;
@@ -169,6 +178,25 @@ public class Rule {
         }
     }
 
+    /**
+     * Modification à l'écran (spécification §7 et §9) : nouvelle configuration et valeurs des variables ; l'empreinte du
+     * dernier import est conservée et les champs changés sont retenus.
+     */
+    public void editInApp(ImportedRule edited, Map<String, String> values, List<FieldChanges.Change> changes,
+            Instant now) {
+        String hash = this.configHash;
+        Map<String, String> edits = new LinkedHashMap<>(editedInApp);
+        changes.forEach(change -> edits.put(change.field(), change.after() == null ? "" : change.after()));
+        apply(edited, hash, now);
+        this.variables = new LinkedHashMap<>(values);
+        this.editedInApp = edits;
+    }
+
+    /** Champs modifiés à l'écran depuis le dernier import. */
+    public Map<String, String> getEditedInApp() {
+        return Map.copyOf(editedInApp);
+    }
+
     /** Remplace toute la configuration par celle du fichier ; l'état des envois n'est pas touché. */
     public void apply(ImportedRule imported, String configHash, Instant now) {
         SchedulingRule scheduling = imported.scheduling();
@@ -189,6 +217,7 @@ public class Rule {
         this.dailyValidation = imported.dailyValidation();
         this.status = imported.status();
         this.configHash = configHash;
+        this.editedInApp = new LinkedHashMap<>();
         this.updatedAt = now;
     }
 

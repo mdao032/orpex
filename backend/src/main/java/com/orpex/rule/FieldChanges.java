@@ -1,10 +1,9 @@
-package com.orpex.importing;
+package com.orpex.rule;
 
 import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.calendar.SendMode;
 import com.orpex.core.importing.ImportedRule;
 import com.orpex.core.importing.RuleStatus;
-import com.orpex.rule.Rule;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -12,14 +11,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
-/** Champs modifiés entre une relance en base et la ligne du fichier, en clair pour l'aperçu (spécification §9). */
-final class FieldChanges {
+/**
+ * Champs modifiés entre une relance en base et une nouvelle configuration (ligne du fichier ou saisie à l'écran),
+ * en clair, nommés comme les colonnes du fichier (spécification §9 et §11).
+ */
+public final class FieldChanges {
 
     /** {@code field} : nom de la colonne du fichier ; {@code before}/{@code after} : valeurs affichables. */
     public record Change(String field, String before, String after) {
     }
+
+    /** Variables standard : leurs valeurs sont des colonnes de configuration, déjà comparées champ par champ. */
+    private static final Set<String> STANDARD_VARIABLES = Set.of("id", "email", "prenom", "nom", "reference_dossier");
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
@@ -27,7 +34,7 @@ final class FieldChanges {
     private FieldChanges() {
     }
 
-    static List<Change> between(Rule current, ImportedRule imported, Map<String, String> newFreeVariables) {
+    public static List<Change> between(Rule current, ImportedRule imported, Map<String, String> newFreeVariables) {
         SchedulingRule before = current.scheduling();
         SchedulingRule after = imported.scheduling();
         List<Change> changes = new ArrayList<>();
@@ -47,11 +54,17 @@ final class FieldChanges {
         add(changes, "jours_ouvres_uniquement", yesNo(before.businessDaysOnly()), yesNo(after.businessDaysOnly()));
         add(changes, "validation_quotidienne", yesNo(current.isDailyValidation()), yesNo(imported.dailyValidation()));
         add(changes, "statut", status(current.getStatus()), status(imported.status()));
-        Map<String, String> oldFree = ImportPreviewService.freeVariables(current.getVariables());
+        Map<String, String> oldFree = freeVariables(current.getVariables());
         for (String name : new TreeSet<>(newFreeVariables.keySet())) {
             add(changes, name, oldFree.get(name), newFreeVariables.get(name));
         }
         return changes;
+    }
+
+    /** Valeurs des colonnes libres utilisées comme variables (les autres sont des champs de configuration). */
+    public static Map<String, String> freeVariables(Map<String, String> values) {
+        return values.entrySet().stream().filter(e -> !STANDARD_VARIABLES.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private static void add(List<Change> changes, String field, String before, String after) {
