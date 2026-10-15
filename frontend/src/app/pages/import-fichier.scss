@@ -110,3 +110,23 @@ td .erreur {
   justify-content: space-between;
   gap: 1rem;
 }
+
+.compteurs .conflit,
+.changements .conflit > .champ {
+  color: #8a5300;
+}
+
+.changements .conflit fieldset {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+  border: 0;
+
+  label {
+    display: block;
+  }
+
+  .valeur {
+    font-weight: 600;
+    white-space: pre-wrap;
+  }
+}

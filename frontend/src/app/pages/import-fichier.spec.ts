@@ -12,7 +12,7 @@ const PREVIEW: ImportPreview = {
   missingColumns: [],
   counts: {
     toCreate: 1, toUpdate: 0, unchanged: 0, rejected: 1, withWarnings: 0, plannedSends: 5,
-    sendsAdded: 0, sendsMoved: 0, sendsCancelled: 0,
+    sendsAdded: 0, sendsMoved: 0, sendsCancelled: 0, withConflicts: 0,
   },
   rows: [
     {
@@ -23,11 +23,11 @@ const PREVIEW: ImportPreview = {
         endDate: '2027-03-05', sendTime: '09:00:00', businessDaysOnly: true, dailyValidation: false, status: 'ACTIVE',
       },
       sends: { planned: 5, first: '2027-03-01', last: '2027-03-05', missedToday: 0 },
-      changes: [], sendImpact: null, closing: false,
+      changes: [], sendImpact: null, closing: false, conflicts: [],
     },
     {
       rowNumber: 3, id: 'P-2', action: 'REJECTED', warnings: [], interpreted: null, sends: null,
-      changes: [], sendImpact: null, closing: false,
+      changes: [], sendImpact: null, closing: false, conflicts: [],
       errors: ['date_envoi : date « 03/04 » illisible (format AAAA-MM-JJ attendu)'],
     },
   ],
@@ -139,6 +139,41 @@ describe('ImportFichier', () => {
     button.click();
     const apply = http.expectOne((req) => req.method === 'POST' && req.url === '/api/imports');
     expect((apply.request.body as FormData).get('closeAbsent')).toBe('true');
+  });
+
+  it('requires a choice for each conflict and sends it', async () => {
+    const { page, stable } = await render();
+    choose(page);
+    http.expectOne('/api/imports/preview').flush({
+      ...PREVIEW,
+      counts: { ...PREVIEW.counts, toCreate: 0, toUpdate: 1, rejected: 0, withConflicts: 1 },
+      rows: [{
+        ...PREVIEW.rows[0], action: 'UPDATE',
+        changes: [
+          { field: 'heure_envoi', before: '10:30', after: '11:00' },
+          { field: 'date_fin', before: '05/03/2027', after: '04/03/2027' },
+        ],
+        conflicts: ['heure_envoi'],
+        sendImpact: { added: 0, moved: 4, cancelled: 1 },
+      }],
+    });
+    await nextTick();
+    await stable();
+
+    const conflict = page.querySelector('.changements li.conflit')!;
+    expect(conflict.textContent).toContain('Garder celle de l\'application : 10:30');
+    expect(conflict.textContent).toContain('Prendre celle du fichier : 11:00');
+    const button = page.querySelector('.confirmation button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(page.querySelector('.confirmation')?.textContent).toContain('1 conflit(s) restant(s)');
+
+    (conflict.querySelectorAll('input[type="radio"]')[0] as HTMLInputElement).click();
+    await stable();
+    expect(button.disabled).toBe(false);
+    button.click();
+    const apply = http.expectOne((req) => req.method === 'POST' && req.url === '/api/imports');
+    expect(JSON.parse((apply.request.body as FormData).get('resolutions') as string))
+      .toEqual({ 'P-1': { heure_envoi: 'APP' } });
   });
 
   it('explains a refused file', async () => {

@@ -1,7 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
-  FieldChange, ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi,
+  ConflictChoice, FieldChange, ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi, Resolutions,
+  RowPreview,
 } from '../imports/imports-api';
 import { apiErrorMessage } from '../shared/api-error';
 import { sendImpactLabel } from '../shared/rule-labels';
@@ -74,7 +75,16 @@ const ACTIONS: Record<ImportAction, string> = {
             <li><strong>{{ a.counts.unchanged }}</strong> inchangée(s)</li>
             <li><strong>{{ a.counts.rejected }}</strong> rejetée(s)</li>
             <li><strong>{{ a.counts.withWarnings }}</strong> avec avertissement</li>
+            @if (a.counts.withConflicts > 0) {
+              <li class="conflit"><strong>{{ a.counts.withConflicts }}</strong> avec conflit à trancher</li>
+            }
           </ul>
+          @if (a.counts.withConflicts > 0) {
+            <p class="avertissement" role="note">
+              Certaines relances ont été modifiées à l'écran et le fichier propose d'autres valeurs : pour chaque
+              champ en conflit, choisissez la valeur à garder. Rien n'est remplacé sans votre choix.
+            </p>
+          }
           @if (a.counts.toCreate > 0) {
             <p class="detail">Nouvelles relances : {{ a.counts.plannedSends }} envoi(s) prévu(s) une fois activées.</p>
           }
@@ -117,6 +127,26 @@ const ACTIONS: Record<ImportAction, string> = {
                     @if (ligne.changes.length > 0) {
                       <ul class="changements" aria-label="Champs modifiés">
                         @for (c of ligne.changes; track c.field) {
+                          @if (ligne.conflicts.includes(c.field)) {
+                            <li class="conflit">
+                              <span class="champ">{{ c.field }}</span> : modifié à l'écran et dans le fichier
+                              <fieldset>
+                                <legend class="masque">Valeur à garder pour {{ c.field }}</legend>
+                                <label>
+                                  <input type="radio" [name]="'conflit-' + ligne.rowNumber + '-' + c.field"
+                                         [checked]="decisions()[ligne.id]?.[c.field] === 'APP'"
+                                         (change)="trancher(ligne.id, c.field, 'APP')" [disabled]="enCours()" />
+                                  Garder celle de l'application : <span class="valeur">{{ c.before ?? '(vide)' }}</span>
+                                </label>
+                                <label>
+                                  <input type="radio" [name]="'conflit-' + ligne.rowNumber + '-' + c.field"
+                                         [checked]="decisions()[ligne.id]?.[c.field] === 'FILE'"
+                                         (change)="trancher(ligne.id, c.field, 'FILE')" [disabled]="enCours()" />
+                                  Prendre celle du fichier : <span class="valeur">{{ c.after ?? '(vide)' }}</span>
+                                </label>
+                              </fieldset>
+                            </li>
+                          } @else {
                           <li>
                             <span class="champ">{{ c.field }}</span> :
                             @if (estLong(c)) {
@@ -130,6 +160,7 @@ const ACTIONS: Record<ImportAction, string> = {
                               <span class="avant">{{ c.before ?? '(vide)' }}</span> → {{ c.after ?? '(vide)' }}
                             }
                           </li>
+                          }
                         }
                       </ul>
                     }
@@ -147,6 +178,9 @@ const ACTIONS: Record<ImportAction, string> = {
                           {{ impact(s.added, s.moved, s.cancelled) }}
                         } @else {
                           Envois à venir inchangés
+                        }
+                        @if (ligne.conflicts.length > 0) {
+                          <div class="detail">(avec les valeurs du fichier)</div>
                         }
                       } @else {
                         <span class="detail">Pas encore activée : aucun envoi</span>
@@ -186,7 +220,10 @@ const ACTIONS: Record<ImportAction, string> = {
           }
 
           <div class="confirmation">
-            <button type="submit" (click)="confirmer()" [disabled]="enCours() || !aAppliquer(a)">
+            @if (aTrancher(a) > 0) {
+              <p class="detail">{{ aTrancher(a) }} conflit(s) restant(s) à trancher.</p>
+            }
+            <button type="submit" (click)="confirmer()" [disabled]="enCours() || !aAppliquer(a) || aTrancher(a) > 0">
               Confirmer l'import ({{ resume(a) }})
             </button>
             <button type="button" (click)="annuler()" [disabled]="enCours()">Annuler</button>
@@ -222,6 +259,8 @@ export class ImportFichier implements OnInit {
   protected readonly enCours = signal(false);
   /** Clore les relances absentes du fichier : décoché par défaut, choix explicite. */
   protected readonly clore = signal(false);
+  /** Choix de l'utilisateur pour chaque conflit, aucun par défaut. */
+  protected readonly decisions = signal<Resolutions>({});
 
   protected readonly calendrier = scheduleLabel;
   protected readonly jours = daysRange;
@@ -240,6 +279,16 @@ export class ImportFichier implements OnInit {
 
   protected readonly impact = sendImpactLabel;
 
+  protected trancher(id: string, champ: string, valeur: ConflictChoice): void {
+    this.decisions.update((c) => ({ ...c, [id]: { ...c[id], [champ]: valeur } }));
+  }
+
+  /** Conflits encore sans choix. */
+  protected aTrancher(a: ImportPreview): number {
+    const c = this.decisions();
+    return a.rows.reduce((n: number, r: RowPreview) => n + r.conflicts.filter((f) => !c[r.id]?.[f]).length, 0);
+  }
+
   protected aAppliquer(a: ImportPreview): boolean {
     return a.counts.toCreate + a.counts.toUpdate > 0 || (this.clore() && a.absent.length > 0);
   }
@@ -256,6 +305,7 @@ export class ImportFichier implements OnInit {
     this.apercu.set(null);
     this.message.set(null);
     this.clore.set(false);
+    this.decisions.set({});
     this.fichier.set(fichier);
     if (!fichier) {
       return;
@@ -277,7 +327,7 @@ export class ImportFichier implements OnInit {
     }
     this.enCours.set(true);
     try {
-      this.resultat.set(await this.api.apply(fichier, this.clore()));
+      this.resultat.set(await this.api.apply(fichier, this.clore(), this.decisions()));
       this.apercu.set(null);
       this.fichier.set(null);
       await this.rechargerHistorique();
