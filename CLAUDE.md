@@ -60,6 +60,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   validé → `VALIDATED` (qui, quand), décoché → `NOT_VALIDATED` ; à l'heure d'envoi, un envoi encore en attente →
   `NOT_VALIDATED` (worker), jamais envoyé. Retour sur sa décision du jour avant l'heure limite (`/api/validation/reopen`) ; un envoi
   devenu « non validé » faute de validation reste définitif.
+  Récapitulatif (`ValidationReminderService`, à chaque passage du worker) : un mail au propriétaire listant ses
+  relances du jour à valider, dès que l'une arrive à `orpex.validation-reminder-lead` (1 h) de son heure limite ;
+  chaque envoi rappelé une seule fois (`reminded_at`). Lien vers `orpex.app-url` (`ORPEX_APP_URL`).
 - `backend/.../mail/` : `SmtpMailGateway` (Spring Mail, `spring.mail.*`, expéditeur `orpex.mail.*`) ; erreurs classées
   temporaires (4xx, serveur injoignable) ou définitives (5xx, adresse ou authentification refusée). Les valeurs des
   variables (colonnes libres comprises) sont relevées à l'import (`rules.variables`, JSON).

@@ -4,6 +4,9 @@ import static com.orpex.MockMvcSupport.login;
 import static com.orpex.MockMvcSupport.send;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,6 +23,7 @@ import com.orpex.core.calendar.SchedulingRule;
 import com.orpex.core.importing.ImportedRule;
 import com.orpex.core.importing.RuleStatus;
 import com.orpex.core.mail.MailGateway;
+import com.orpex.core.mail.MailMessage;
 import com.orpex.rule.ActivationService;
 import com.orpex.rule.Occurrence;
 import com.orpex.rule.OccurrenceRepository;
@@ -31,8 +35,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -80,6 +86,9 @@ class ValidationIT {
 
     @Autowired
     Clock clock;
+
+    @Autowired
+    ValidationReminderService reminders;
 
     private long owner;
     private MockHttpSession session;
@@ -199,8 +208,46 @@ class ValidationIT {
         assertThat(occurrences.findById(mine).orElseThrow().getState()).isEqualTo(OccurrenceState.VALIDATED);
     }
 
+    @Test
+    void oneSummaryListsTheSendsToValidateWhenTheFirstCutoffApproaches() throws Exception {
+        long recipient = account("rappel@test.local");
+        long soon = awaitingToday("RAP-1", "80 minutes", recipient);
+        long later = awaitingToday("RAP-2", "5 hours", recipient);
+
+        reminders.sendDueReminders();
+
+        ArgumentCaptor<MailMessage> mails = ArgumentCaptor.forClass(MailMessage.class);
+        verify(gateway, atLeastOnce()).send(mails.capture());
+        List<MailMessage> mine = mails.getAllValues().stream().filter(m -> m.to().equals("rappel@test.local")).toList();
+        assertThat(mine).singleElement().satisfies(mail -> {
+            assertThat(mail.subject()).isEqualTo("ORPEX : 2 relance(s) à valider aujourd'hui");
+            assertThat(mail.body()).contains("RAP-1").contains("RAP-2").contains("à valider avant")
+                    .contains("/validation");
+        });
+
+        reset(gateway);
+        reminders.sendDueReminders();
+        verify(gateway, never()).send(argThat(m -> m.to().equals("rappel@test.local")));
+        assertThat(jdbc.queryForObject("select count(*) from occurrences where id in (?, ?) and reminded_at is not null",
+                Integer.class, soon, later)).isEqualTo(2);
+    }
+
+    @Test
+    void noSummaryWhileNoCutoffIsNear() throws Exception {
+        long recipient = account("rappel-tard@test.local");
+        awaitingToday("RAP-3", "5 hours", recipient);
+
+        reminders.sendDueReminders();
+
+        verify(gateway, never()).send(argThat(m -> m.to().equals("rappel-tard@test.local")));
+    }
+
     /** Envoi d'aujourd'hui en attente de validation, prévu dans {@code delay} (intervalle PostgreSQL). */
     private long awaitingToday(String businessId, String delay) {
+        return awaitingToday(businessId, delay, owner);
+    }
+
+    private long awaitingToday(String businessId, String delay, long owner) {
         ImportedRule imported = new ImportedRule(businessId + "-" + System.nanoTime(), "dest@exemple.ml", null, null,
                 "FAC-" + businessId, "Relance", "Bonjour", SchedulingRule.once(LocalDate.parse("2027-12-01"), false),
                 LocalTime.of(9, 0), true, RuleStatus.ACTIVE);

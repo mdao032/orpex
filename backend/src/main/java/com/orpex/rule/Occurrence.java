@@ -60,6 +60,10 @@ public class Occurrence {
     @Column(name = "error_kind", length = 30)
     private SendIssue issue;
 
+    /** Récapitulatif de validation envoyé pour cet envoi : jamais deux fois. */
+    @Column(name = "reminded_at")
+    private Instant remindedAt;
+
     /** Prochaine tentative après un échec temporaire ; null sinon. */
     @Column(name = "next_attempt_at")
     private Instant nextAttemptAt;

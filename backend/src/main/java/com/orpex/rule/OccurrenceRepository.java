@@ -69,6 +69,22 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
             order by o.scheduledAt, o.id""")
     List<Occurrence> findForDailyValidation(@Param("ownerId") long ownerId, @Param("day") LocalDate day);
 
+    /**
+     * Récapitulatif de validation : envois du jour en attente, pas encore rappelés, de lignes actives non en pause
+     * (tous propriétaires : opération système, chaque propriétaire ne reçoit que les siens).
+     */
+    @Query("""
+            select o from Occurrence o, Rule r
+            where r.id = o.ruleId and r.status = com.orpex.core.importing.RuleStatus.ACTIVE and r.paused = false
+              and o.state = :awaiting and o.scheduledDate = :day and o.remindedAt is null
+            order by o.scheduledAt""")
+    List<Occurrence> findAwaitingNotReminded(@Param("day") LocalDate day,
+            @Param("awaiting") OccurrenceState awaiting);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Occurrence o set o.remindedAt = :now where o.id in :ids")
+    int markReminded(@Param("ids") Collection<Long> ids, @Param("now") Instant now);
+
     /** Nombre d'envois déjà partis, par ligne : « nombre de relances déjà envoyées » (spécification §7). */
     @Query("""
             select o.ruleId, count(o) from Occurrence o

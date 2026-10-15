@@ -1,6 +1,7 @@
 package com.orpex.sending;
 
 import com.orpex.mail.SmtpHealthService;
+import com.orpex.validation.ValidationReminderService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Configuration;
@@ -16,10 +17,12 @@ class SendScheduler {
 
     private final SendWorker worker;
     private final SmtpHealthService health;
+    private final ValidationReminderService reminders;
 
-    SendScheduler(SendWorker worker, SmtpHealthService health) {
+    SendScheduler(SendWorker worker, SmtpHealthService health, ValidationReminderService reminders) {
         this.worker = worker;
         this.health = health;
+        this.reminders = reminders;
     }
 
     /** Contrôle de santé du relais (spécification §10) : connexion sans envoi, résultat affiché à l'administrateur. */
@@ -37,5 +40,6 @@ class SendScheduler {
     @Scheduled(fixedDelayString = "${orpex.worker.delay}", initialDelayString = "${orpex.worker.delay}")
     void run() {
         worker.processDueSends();
+        reminders.sendDueReminders();
     }
 }

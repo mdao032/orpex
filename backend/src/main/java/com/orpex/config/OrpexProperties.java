@@ -15,10 +15,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param mail                    expéditeur des relances
  * @param worker                  worker d'envoi
  * @param secretKey               clé de chiffrement des secrets au repos (Base64, 32 octets), jamais en base
+ * @param validationReminderLead  récapitulatif de validation envoyé ce délai avant l'heure limite
+ * @param appUrl                  adresse de l'application, pour les liens dans les mails
  */
 @ConfigurationProperties(prefix = "orpex")
 public record OrpexProperties(String timezone, int validationCutoffMinutes, BootstrapAdmin bootstrapAdmin,
-        Login login, Password password, Mail mail, Worker worker, String secretKey) {
+        Login login, Password password, Mail mail, Worker worker, String secretKey, Duration validationReminderLead,
+        String appUrl) {
 
     public record BootstrapAdmin(String email, String password) {
 
