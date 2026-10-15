@@ -7,6 +7,8 @@ export interface User {
   roles: string[];
   /** Mot de passe provisoire (choisi par un administrateur) : à remplacer avant tout autre usage. */
   mustChangePassword: boolean;
+  /** Fuseau de l'installation (ex. Africa/Bamako) : les heures s'affichent dans ce fuseau. */
+  timezone?: string;
 }
 
 /**

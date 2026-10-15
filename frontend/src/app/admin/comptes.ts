@@ -1,13 +1,13 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Auth } from '../auth/auth';
 import { apiErrorMessage } from '../shared/api-error';
 import { Account, AccountsApi, Role } from './accounts-api';
+import { InstallationTimePipe } from '../shared/installation-time';
 
 @Component({
   selector: 'app-comptes',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, InstallationTimePipe],
   styleUrl: '../shared/page.scss',
   template: `
     <h1>Comptes</h1>
@@ -55,8 +55,8 @@ import { Account, AccountsApi, Role } from './accounts-api';
             <td>{{ compte.email }}</td>
             <td>{{ compte.role === 'ADMIN' ? 'Administrateur' : 'Utilisateur' }}</td>
             <td>{{ etat(compte) }}</td>
-            <td>{{ compte.lastLoginAt ? (compte.lastLoginAt | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
-            <td>{{ compte.createdAt | date: 'dd/MM/yyyy' }}</td>
+            <td>{{ compte.lastLoginAt ? (compte.lastLoginAt | heure: 'dd/MM/yyyy HH:mm') : '—' }}</td>
+            <td>{{ compte.createdAt | heure: 'dd/MM/yyyy' }}</td>
             <td class="actions">
               @if (reinitialisation() === compte.id) {
                 <form (submit)="reinitialiser(compte, provisoire.value); $event.preventDefault()">

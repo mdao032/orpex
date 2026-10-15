@@ -102,7 +102,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   le détail), `pages/relance` (`/lignes/:id`, message, calendrier, envois) ; libellés partagés (états, messages
   d'action) dans `shared/rule-labels.ts` ; styles
   communs dans `shared/page.scss`, calendrier en français par `shared/schedule-label.ts`.
-  Pages admin dans `admin/` (comptes, jours fériés). Locale `fr` active (dates en français via `DatePipe`).
+  Pages admin dans `admin/` (comptes, jours fériés, envois, messagerie). Locale `fr` active. **Instants (date et
+  heure) : toujours le filtre `heure` (`shared/installation-time.ts`)**, qui affiche dans le fuseau de l'installation
+  (`timezone` de `/api/me`), jamais celui du navigateur ; `DatePipe` seulement pour des dates sans heure (jours fériés).
 - Heure : bean `Clock` dans le fuseau `orpex.timezone` (défaut `Africa/Bamako`, invalide = démarrage refusé). Calculer
   « aujourd'hui » et les heures d'envoi avec ce `Clock`, jamais avec le fuseau du serveur.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.

@@ -5,6 +5,7 @@ import com.orpex.account.UserAccount;
 import com.orpex.account.UserAccountRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -21,7 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/me")
 public class MeController {
 
-    public record MeResponse(String email, List<String> roles, boolean mustChangePassword) {
+    /** {@code timezone} : fuseau de l'installation, dans lequel l'écran affiche les heures (pas celui du navigateur). */
+    public record MeResponse(String email, List<String> roles, boolean mustChangePassword, String timezone) {
     }
 
     public record ChangePasswordRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {
@@ -29,10 +31,12 @@ public class MeController {
 
     private final UserAccountRepository accounts;
     private final AccountService accountService;
+    private final Clock clock;
 
-    public MeController(UserAccountRepository accounts, AccountService accountService) {
+    public MeController(UserAccountRepository accounts, AccountService accountService, Clock clock) {
         this.accounts = accounts;
         this.accountService = accountService;
+        this.clock = clock;
     }
 
     @GetMapping
@@ -43,7 +47,7 @@ public class MeController {
         boolean mustChangePassword = accounts.findByEmail(UserAccount.normalizeEmail(authentication.getName()))
                 .map(UserAccount::isMustChangePassword)
                 .orElse(false);
-        return new MeResponse(authentication.getName(), roles, mustChangePassword);
+        return new MeResponse(authentication.getName(), roles, mustChangePassword, clock.getZone().getId());
     }
 
     @PutMapping("/password")

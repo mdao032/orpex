@@ -74,7 +74,9 @@ class AdminAccountIT {
                 .andExpect(jsonPath("$.mustChangePassword").value(true));
 
         MockHttpSession user = login("nouveau@test.local", TEMPORARY);
-        mvc.perform(get("/api/me").session(user)).andExpect(jsonPath("$.mustChangePassword").value(true));
+        mvc.perform(get("/api/me").session(user))
+                .andExpect(jsonPath("$.mustChangePassword").value(true))
+                .andExpect(jsonPath("$.timezone").value("Africa/Bamako"));
         mvc.perform(get("/api/adresse-inexistante").session(user))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("PASSWORD_CHANGE_REQUIRED"));

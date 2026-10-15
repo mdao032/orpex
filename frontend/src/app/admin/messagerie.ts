@@ -1,9 +1,9 @@
-import { DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { apiErrorMessage } from '../shared/api-error';
+import { InstallationTimePipe } from '../shared/installation-time';
 
 type Encryption = 'NONE' | 'STARTTLS' | 'TLS';
 
@@ -28,7 +28,7 @@ interface CheckResult {
 
 @Component({
   selector: 'app-messagerie',
-  imports: [ReactiveFormsModule, DatePipe],
+  imports: [ReactiveFormsModule, InstallationTimePipe],
   styleUrls: ['../shared/page.scss', './messagerie.scss'],
   template: `
     <h1>Messagerie</h1>
@@ -52,10 +52,10 @@ interface CheckResult {
         @if (!v.configured) {
           <p class="aide">Le contrôle régulier ne concerne que le relais enregistré sur cet écran.</p>
         } @else if (v.health.status === 'OK') {
-          <p class="info">Joignable (contrôlé le {{ v.health.checkedAt | date: 'dd/MM/yyyy à HH:mm' }}).</p>
+          <p class="info">Joignable (contrôlé le {{ v.health.checkedAt | heure: 'dd/MM/yyyy à HH:mm' }}).</p>
         } @else if (v.health.status === 'ERROR') {
           <p class="erreur">
-            Injoignable ou refus (contrôlé le {{ v.health.checkedAt | date: 'dd/MM/yyyy à HH:mm' }}) :
+            Injoignable ou refus (contrôlé le {{ v.health.checkedAt | heure: 'dd/MM/yyyy à HH:mm' }}) :
             {{ v.health.detail }}
           </p>
         } @else {

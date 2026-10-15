@@ -1,9 +1,9 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ImportAction, ImportPreview, ImportRecord, ImportResult, ImportsApi } from '../imports/imports-api';
 import { apiErrorMessage } from '../shared/api-error';
 import { daysRange, scheduleLabel } from '../shared/schedule-label';
+import { InstallationTimePipe } from '../shared/installation-time';
 
 const ACTIONS: Record<ImportAction, string> = {
   CREATE: 'À créer',
@@ -14,7 +14,7 @@ const ACTIONS: Record<ImportAction, string> = {
 
 @Component({
   selector: 'app-import-fichier',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, InstallationTimePipe],
   styleUrls: ['../shared/page.scss', './import-fichier.scss'],
   template: `
     <h1>Importer un fichier</h1>
@@ -136,7 +136,7 @@ const ACTIONS: Record<ImportAction, string> = {
         <ul class="historique">
           @for (h of historique(); track h.id) {
             <li>
-              {{ h.createdAt | date: 'dd/MM/yyyy HH:mm' }} — {{ h.fileName }} : {{ h.created }} créée(s),
+              {{ h.createdAt | heure: 'dd/MM/yyyy HH:mm' }} — {{ h.fileName }} : {{ h.created }} créée(s),
               {{ h.unchanged }} inchangée(s), {{ h.rejected }} rejetée(s)
               @if (h.summary) { <span class="detail">({{ h.summary }})</span> }
             </li>

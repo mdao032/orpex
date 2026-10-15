@@ -1,11 +1,11 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { SendingStatus } from '../sending/sending-status';
 import { apiErrorMessage } from '../shared/api-error';
+import { InstallationTimePipe } from '../shared/installation-time';
 
 @Component({
   selector: 'app-envois',
-  imports: [DatePipe],
+  imports: [InstallationTimePipe],
   styleUrl: '../shared/page.scss',
   template: `
     <h1>Envois</h1>
@@ -16,7 +16,7 @@ import { apiErrorMessage } from '../shared/api-error';
         @if (s.paused) {
           <p class="erreur" role="status">
             Tous les envois sont suspendus
-            @if (s.changedAt) { depuis le {{ s.changedAt | date: 'dd/MM/yyyy à HH:mm' }} }.
+            @if (s.changedAt) { depuis le {{ s.changedAt | heure: 'dd/MM/yyyy à HH:mm' }} }.
           </p>
           <button type="submit" (click)="changer(false)" [disabled]="enCours()">Reprendre les envois</button>
         } @else {

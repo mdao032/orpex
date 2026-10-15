@@ -1,6 +1,6 @@
-import { DatePipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Auth } from '../auth/auth';
 import { RuleDetail, RulesApi } from '../imports/rules-api';
 import { apiErrorMessage } from '../shared/api-error';
 import {
@@ -14,13 +14,14 @@ import {
   ruleStatusLabel,
 } from '../shared/rule-labels';
 import { frenchDate, scheduleLabel } from '../shared/schedule-label';
+import { InstallationTimePipe } from '../shared/installation-time';
 
 /** Envois encore à venir (ni partis, ni abandonnés). */
 const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATED'];
 
 @Component({
   selector: 'app-relance',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, InstallationTimePipe],
   styleUrls: ['../shared/page.scss', './import-fichier.scss', './relance.scss'],
   template: `
     <p><a routerLink="/lignes">← Toutes les relances</a></p>
@@ -83,6 +84,9 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
 
       <section class="bloc" aria-labelledby="titre-envois">
         <h2 id="titre-envois">Envois</h2>
+        @if (fuseau()) {
+          <p class="aide">Heures dans le fuseau de l'installation : {{ fuseau() }}.</p>
+        }
         @if (d.sends.length === 0) {
           <p class="info">
             {{ d.rule.activatedAt ? 'Aucun envoi.' : 'Aucun envoi tant que la relance n’est pas activée.' }}
@@ -108,16 +112,16 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
               @for (e of d.sends; track e.id) {
                 <tr [class]="'etat-' + e.state.toLowerCase()">
                   <td>{{ date(e.scheduledDate) }}</td>
-                  <td>{{ e.scheduledAt | date: 'HH:mm' }}</td>
+                  <td>{{ e.scheduledAt | heure: 'HH:mm' }}</td>
                   <td><span class="badge">{{ etat(e.state) }}</span></td>
                   <td class="detail">
-                    @if (e.sentAt) { Envoyé le {{ e.sentAt | date: 'dd/MM/yyyy à HH:mm' }}. }
-                    @if (e.validatedAt) { Validé le {{ e.validatedAt | date: 'dd/MM/yyyy à HH:mm' }}. }
+                    @if (e.sentAt) { Envoyé le {{ e.sentAt | heure: 'dd/MM/yyyy à HH:mm' }}. }
+                    @if (e.validatedAt) { Validé le {{ e.validatedAt | heure: 'dd/MM/yyyy à HH:mm' }}. }
                     @if (e.attempts > 1 || (e.attempts === 1 && e.state !== 'SENT')) {
                       {{ e.attempts }} tentative(s).
                     }
                     @if (e.nextAttemptAt) {
-                      Nouvelle tentative prévue le {{ e.nextAttemptAt | date: 'dd/MM/yyyy à HH:mm' }}.
+                      Nouvelle tentative prévue le {{ e.nextAttemptAt | heure: 'dd/MM/yyyy à HH:mm' }}.
                     }
                     @if (e.lastError) { <span class="erreur">{{ e.lastError }}</span> }
                     @if (e.state === 'TO_CHECK') {
@@ -140,6 +144,7 @@ const UPCOMING: OccurrenceState[] = ['PLANNED', 'AWAITING_VALIDATION', 'VALIDATE
 })
 export class Relance implements OnInit {
   private readonly api = inject(RulesApi);
+  private readonly auth = inject(Auth);
   private readonly id = Number(inject(ActivatedRoute).snapshot.paramMap.get('id'));
 
   protected readonly detail = signal<RuleDetail | null>(null);
@@ -151,6 +156,7 @@ export class Relance implements OnInit {
   protected readonly prevision = forecastLabel;
   protected readonly statut = ruleStatusLabel;
   protected readonly date = frenchDate;
+  protected readonly fuseau = computed(() => this.auth.user()?.timezone);
 
   protected readonly aVenir = computed(() => UPCOMING.reduce((n, s) => n + this.total(s), 0));
   /** Envois ni envoyés ni à venir (manqués, annulés, échecs…), seulement les états présents. */
