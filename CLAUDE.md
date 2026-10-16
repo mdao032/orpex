@@ -135,6 +135,12 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   `AuditLog`.**
   Consultation (`AuditQueryService`) : `/api/audit` (ses relances et ses actions), `/api/admin/audit` (tout), période
   `from`/`to` incluse, 500 lignes à l'écran ; `/export` en CSV (`AuditCsv` : BOM, « ; », formules neutralisées). Page `pages/journal`.
+- `backend/.../notification/` (à chaque passage du worker) : alerte d'échec (`FailureAlertService`, envois `FAILED`/`TO_CHECK`,
+  une fois chacun, `occurrences.alerted_at`) au propriétaire et aux administrateurs ; résumé (`SummaryService`) à la
+  fréquence choisie dans « Mon compte » (`users.summary_frequency` : chaque jour ouvré à la fin de la journée, ou chaque
+  semaine, dernier jour ouvré à la fin / premier jour ouvré au début), seulement s'il y a des envois, une fois par jour
+  (`daily_summaries`) ; journée de travail réglée par l'admin (`/api/admin/workday`, écran « Envois »). Alerte SMTP aux
+  administrateurs au changement d'état du contrôle de santé (panne, puis rétablissement).
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - **Jackson 3** refuse par défaut un champ primitif (`int`, `boolean`) absent du JSON : dans les records de requête,
   utiliser `Integer`/`Boolean` pour les champs facultatifs.
@@ -164,9 +170,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Phases 0 à 7 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
-  planifiés, envoi réel des mails, validation quotidienne, ré-import et modification à l'écran) ; jalon J1 atteint à la phase 6. Phase 8 :
-  journal d'audit et notifications.
+- Phases 0 à 8 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
+  planifiés, envoi réel des mails, validation quotidienne, ré-import et modification à l'écran, journal d'audit et notifications) ; jalon J1 atteint à la phase 6.
+  Phase 9 : livraison et exploitation.
   Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
@@ -177,6 +183,7 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 ## Écarts connus avec la spécification
 
 - État `VALIDATED` ajouté (absent du schéma de la spécification).
+- Résumé hebdomadaire (vendredi soir ou lundi matin) proposé en plus du résumé quotidien, au choix de chaque utilisateur.
 - Un envoi ponctuel un jour non ouvré est reporté au jour ouvré précédent, à confirmer.
 
 ## Prochaines étapes

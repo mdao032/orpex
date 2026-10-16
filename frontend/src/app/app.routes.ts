@@ -33,6 +33,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/validation-du-jour').then((m) => m.ValidationDuJour),
       },
       {
+        path: 'compte',
+        title: 'Mon compte – ORPEX',
+        loadComponent: () => import('./pages/mon-compte').then((m) => m.MonCompte),
+      },
+      {
         path: 'journal',
         title: 'Journal – ORPEX',
         loadComponent: () => import('./pages/journal').then((m) => m.Journal),

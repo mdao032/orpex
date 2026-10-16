@@ -9,7 +9,11 @@ export interface User {
   mustChangePassword: boolean;
   /** Fuseau de l'installation (ex. Africa/Bamako) : les heures s'affichent dans ce fuseau. */
   timezone?: string;
+  /** Fréquence du résumé de ses relances. */
+  summaryFrequency?: SummaryFrequency;
 }
+
+export type SummaryFrequency = 'DAILY' | 'WEEKLY_FRIDAY' | 'WEEKLY_MONDAY';
 
 /**
  * Encode tous les caractères spéciaux : l'encodeur par défaut d'Angular laisse passer « @ = ; : $ , / ? »,
