@@ -8,8 +8,15 @@ import static com.orpex.XlsxFiles.periodRow;
 import static com.orpex.XlsxFiles.xlsx;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.orpex.TestcontainersConfiguration;
@@ -20,6 +27,7 @@ import com.orpex.audit.AuditEntry;
 import com.orpex.audit.AuditEvent;
 import com.orpex.audit.AuditRepository;
 import com.orpex.rule.RuleRepository;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,6 +99,54 @@ class AuditIT {
                     "\"relance\": \"A-1\"");
             assertThat(e.getOwnerId()).isEqualTo(owner);
         });
+    }
+
+    @Test
+    void eachUserReadsTheirOwnJournalAndTheAdminReadsEverything() throws Exception {
+        long owner = owner("audit-lecture@test.local");
+        owner("audit-autre@test.local");
+        MockHttpSession session = login(mvc, "audit-lecture@test.local", PASSWORD);
+        MockHttpSession other = login(mvc, "audit-autre@test.local", PASSWORD);
+        mvc.perform(multipart("/api/imports").file(new MockMultipartFile("file", "relances.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        xlsx(ALL_COLUMNS, periodRow("L-1", "lecture@exemple.ml", "2027-11-22", "2027-11-23"))))
+                .session(session).with(realCsrf(mvc))).andExpect(status().isCreated());
+        long id = rules.findByOwnerIdAndBusinessId(owner, "L-1").orElseThrow().getId();
+        send(mvc, post("/api/rules/" + id + "/activate").session(session), "").andExpect(status().isOk());
+        send(mvc, post("/api/rules/" + id + "/close").session(session), "").andExpect(status().isOk());
+
+        mvc.perform(get("/api/audit").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].eventLabel").exists())
+                .andExpect(jsonPath("$[?(@.event == 'SEND_STATE_CHANGED')].after", hasItem(
+                        "L-1, lecture@exemple.ml, prévu le 22/11/2027 09:00 : Annulé")))
+                .andExpect(jsonPath("$[?(@.event == 'SEND_STATE_CHANGED')].before", hasItem("Prévu")))
+                .andExpect(jsonPath("$[?(@.event == 'RULE_CLOSED')].actor", hasItem("audit-lecture@test.local")));
+        mvc.perform(get("/api/audit").session(other))
+                .andExpect(jsonPath("$[?(@.objectId == 'L-1')]", empty()));
+        mvc.perform(get("/api/admin/audit").session(session)).andExpect(status().isForbidden());
+
+        accounts.findByEmail("audit-admin@test.local").orElseGet(() -> accounts.save(new UserAccount(
+                "audit-admin@test.local", passwordEncoder.encode(PASSWORD), Role.ADMIN)));
+        MockHttpSession admin = login(mvc, "audit-admin@test.local", PASSWORD);
+        mvc.perform(get("/api/admin/audit").session(admin))
+                .andExpect(jsonPath("$[?(@.objectId == 'L-1')]", not(empty())));
+        String csv = mvc.perform(get("/api/audit/export").session(session))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", containsString("journal-orpex.csv")))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(csv).startsWith("\uFEFFDate;Auteur;Événement;Objet;Identifiant;Avant;Après\r\n")
+                .contains(";audit-lecture@test.local;Dossier clos;RULE;L-1;;2 envoi(s) annulé(s)\r\n");
+    }
+
+    @Test
+    void aPeriodOnlyKeepsItsDays() throws Exception {
+        owner("audit-periode@test.local");
+        MockHttpSession session = login(mvc, "audit-periode@test.local", PASSWORD);
+        mvc.perform(get("/api/audit").param("from", "2000-01-01").param("to", "2000-01-31").session(session))
+                .andExpect(jsonPath("$", empty()));
+        mvc.perform(get("/api/audit").param("from", "2000-02-01").param("to", "2000-01-31").session(session))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
