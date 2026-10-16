@@ -177,9 +177,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 
 ## État actuel
 
-- Phases 0 à 8 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
-  planifiés, envoi réel des mails, validation quotidienne, ré-import et modification à l'écran, journal d'audit et notifications) ; jalon J1 atteint à la phase 6.
-  Phase 9 : livraison et exploitation.
+- Phases 0 à 9 terminées (fondations, comptes et sécurité, jours fériés, import Excel, activation et envois
+  planifiés, envoi réel des mails, validation quotidienne, ré-import et modification à l'écran, journal d'audit et notifications, livraison : Docker, services, HTTPS, journaux structurés,
+  sécurité des dépendances) ; jalon J1 atteint à la phase 6. Reste : installation sur le serveur de la banque (Q1, Q8).
   Toujours relancer **toute** la suite (`mvn -f backend clean verify` et `npx ng test --watch=false`) avant un commit.
 - `OrpexApplicationIT` démarre toute l'application sur un PostgreSQL 17 jetable (Testcontainers, `@ServiceConnection`)
   et vérifie les migrations Flyway. Tests d'intégration : suffixe `IT`, exécutés par failsafe pendant `mvn verify`.
