@@ -133,6 +133,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
   désignées par leur `id` du fichier. Changements d'état des envois écrits par un trigger (V12, `SEND_STATE_CHANGED`,
   détail en JSON). Jamais de mot de passe. **Toute nouvelle action qui modifie des données ou envoie un mail appelle
   `AuditLog`.**
+  Consultation (`AuditQueryService`) : `/api/audit` (ses relances et ses actions), `/api/admin/audit` (tout), période
+  `from`/`to` incluse, 500 lignes à l'écran ; `/export` en CSV (`AuditCsv` : BOM, « ; », formules neutralisées). Page `pages/journal`.
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - **Jackson 3** refuse par défaut un champ primitif (`int`, `boolean`) absent du JSON : dans les records de requête,
   utiliser `Integer`/`Boolean` pour les champs facultatifs.

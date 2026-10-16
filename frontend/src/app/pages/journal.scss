@@ -1,0 +1,30 @@
+.creation .case {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+.bouton {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--orpex-line);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+td {
+  vertical-align: top;
+}
+
+.date {
+  white-space: nowrap;
+}
+
+.detail {
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.avant {
+  color: var(--orpex-ink-soft);
+}
