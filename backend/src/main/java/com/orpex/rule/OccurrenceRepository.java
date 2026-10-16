@@ -85,6 +85,22 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     @Query("update Occurrence o set o.remindedAt = :now where o.id in :ids")
     int markReminded(@Param("ids") Collection<Long> ids, @Param("now") Instant now);
 
+    /** Résumé quotidien (requête système) : propriétaires ayant des envois l'un de ces jours. */
+    @Query("select distinct o.createdBy from Occurrence o where o.scheduledDate in :days")
+    List<Long> findOwnersWithSendsOn(@Param("days") Collection<LocalDate> days);
+
+    List<Occurrence> findAllByCreatedByAndScheduledDateInOrderByScheduledAtAsc(long createdBy,
+            Collection<LocalDate> days);
+
+    /** Alerte d'échec (requête système) : envois en échec ou à vérifier pas encore signalés. */
+    @Query(nativeQuery = true, value = """
+            select * from occurrences where state in ('FAILED', 'TO_CHECK') and alerted_at is null order by id""")
+    List<Occurrence> findNotAlertedProblems();
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(nativeQuery = true, value = "update occurrences set alerted_at = :now where id in (:ids)")
+    int markAlerted(@Param("ids") Collection<Long> ids, @Param("now") Instant now);
+
     /** Nombre d'envois déjà partis, par ligne : « nombre de relances déjà envoyées » (spécification §7). */
     @Query("""
             select o.ruleId, count(o) from Occurrence o

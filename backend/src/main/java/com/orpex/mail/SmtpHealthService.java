@@ -1,6 +1,9 @@
 package com.orpex.mail;
 
 import com.orpex.audit.AuditEvent;
+import com.orpex.account.Role;
+import com.orpex.account.UserAccount;
+import com.orpex.account.UserAccountRepository;
 import com.orpex.audit.AuditLog;
 import com.orpex.core.mail.MailGateway;
 import com.orpex.core.mail.MailMessage;
@@ -33,9 +36,11 @@ public class SmtpHealthService {
     private final TransactionTemplate transaction;
     private final Clock clock;
     private final AuditLog audit;
+    private final UserAccountRepository accounts;
 
     public SmtpHealthService(MailSenderProvider senders, MailGateway gateway, SmtpSettingsRepository settings,
-            TransactionTemplate transaction, Clock clock, AuditLog audit) {
+            TransactionTemplate transaction, Clock clock, AuditLog audit, UserAccountRepository accounts) {
+        this.accounts = accounts;
         this.senders = senders;
         this.gateway = gateway;
         this.settings = settings;
@@ -74,8 +79,35 @@ public class SmtpHealthService {
         }
         Instant now = clock.instant();
         Result recorded = result;
-        transaction.executeWithoutResult(status -> settings.findById(SmtpSettings.SINGLE_ROW)
-                .ifPresent(s -> s.recordHealth(recorded.success(), recorded.detail(), now)));
+        String previous = transaction.execute(status -> settings.findById(SmtpSettings.SINGLE_ROW).map(s -> {
+            String before = s.getHealthStatus();
+            s.recordHealth(recorded.success(), recorded.detail(), now);
+            return before == null ? "" : before;
+        }).orElse(null));
+        if (previous == null) {
+            return result; // relais du fichier (développement) : pas suivi
+        }
+        // Alerte au changement d'état seulement (spécification §11) : panne, puis rétablissement.
+        if (!result.success() && !"ERROR".equals(previous)) {
+            alertAdmins("ORPEX : le relais de messagerie ne répond plus", "Bonjour,\n\nLe contrôle du relais SMTP a "
+                    + "échoué : " + result.detail() + "\n\nLes envois échoueront tant que le relais ne répond pas. "
+                    + "Vérifiez la configuration (écran « Messagerie ») ou suspendez les envois (écran « Envois »).");
+        } else if (result.success() && "ERROR".equals(previous)) {
+            alertAdmins("ORPEX : le relais de messagerie répond de nouveau", "Bonjour,\n\nLe relais SMTP répond "
+                    + "de nouveau. Consultez les envois en échec ou à vérifier pendant la panne.");
+        }
         return result;
+    }
+
+    /** Le relais peut être celui qui est en panne : l'échec de l'alerte est seulement journalisé. */
+    private void alertAdmins(String subject, String body) {
+        for (UserAccount admin : accounts.findAllByRoleAndEnabledTrueOrderByEmailAsc(Role.ADMIN)) {
+            try {
+                gateway.send(new MailMessage(senders.current().from(), admin.getEmail(), subject, body));
+                audit.record(AuditEvent.SMTP_ALERT_SENT, null, "USER", admin.getEmail(), null, subject);
+            } catch (MailSendException | RuntimeException e) {
+                log.warn("Alerte messagerie non envoyée à {} : {}", admin.getEmail(), e.getMessage());
+            }
+        }
     }
 }

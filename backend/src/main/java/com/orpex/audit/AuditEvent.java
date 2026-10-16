@@ -29,7 +29,11 @@ public enum AuditEvent {
     SENDING_PAUSED("Pause générale des envois"),
     SENDING_RESUMED("Reprise générale des envois"),
     HOLIDAY_ADDED("Jour férié ajouté"),
-    HOLIDAY_REMOVED("Jour férié retiré");
+    HOLIDAY_REMOVED("Jour férié retiré"),
+    NOTIFICATION_SETTINGS_CHANGED("Journée de travail modifiée"),
+    DAILY_SUMMARY_SENT("Résumé quotidien envoyé"),
+    FAILURE_ALERT_SENT("Alerte d'échec envoyée"),
+    SMTP_ALERT_SENT("Alerte messagerie envoyée");
 
     private final String label;
 

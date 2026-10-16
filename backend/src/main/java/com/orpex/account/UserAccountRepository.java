@@ -12,4 +12,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     boolean existsByEmail(String email);
 
     List<UserAccount> findAllByOrderByEmailAsc();
+
+    /** Destinataires des alertes : administrateurs actifs. */
+    List<UserAccount> findAllByRoleAndEnabledTrueOrderByEmailAsc(Role role);
 }
