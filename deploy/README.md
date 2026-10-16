@@ -45,8 +45,29 @@ Toute la configuration passe par des variables d'environnement : partir de [`orp
 | `ORPEX_APP_URL` | Adresse de l'application pour les liens des mails |
 | `ORPEX_ADMIN_EMAIL`, `ORPEX_ADMIN_PASSWORD` | Premier administrateur, créé seulement si aucun compte n'existe |
 | `ORPEX_TIMEZONE` | Fuseau de l'installation (`Africa/Bamako` pour le pilote) |
-| `ORPEX_COOKIE_SECURE` | `true` derrière HTTPS |
-| `ORPEX_PORT` | Port HTTP (8080 par défaut) |
+| `ORPEX_COOKIE_SECURE` | `true` derrière un proxy HTTPS (automatique avec le profil `tls`) |
+| `ORPEX_FORWARD_HEADERS` | `native` derrière un proxy HTTPS |
+| `SPRING_PROFILES_ACTIVE`, `ORPEX_TLS_CERTIFICATE`, `ORPEX_TLS_PRIVATE_KEY` | HTTPS servi par ORPEX (voir plus bas) |
+| `ORPEX_PORT` | Port (8080 en HTTP, 8443 avec le profil `tls`) |
+
+Tout réglage de `application.properties` se surcharge aussi par une variable : nom en majuscules, points et tirets
+remplacés par « _ » (par exemple `orpex.validation-cutoff-minutes` → `ORPEX_VALIDATION_CUTOFF_MINUTES`). Aucun fichier de
+l'application n'est à modifier. Au démarrage, ORPEX signale dans ses journaux (« Configuration de production : … ») une
+clé de chiffrement absente, des liens de mails en HTTP ou un cookie de session non réservé à HTTPS.
+
+### HTTPS
+
+Obligatoire en production (mots de passe et données des relances). Deux façons, au choix de la banque :
+
+- **Derrière le proxy HTTPS de la banque** (recommandé s'il existe) : le proxy reçoit le HTTPS et transmet à ORPEX en
+  HTTP sur le réseau interne. Régler `ORPEX_FORWARD_HEADERS=native` et `ORPEX_COOKIE_SECURE=true`, et faire en sorte que
+  seul le proxy puisse joindre le port d'ORPEX.
+- **ORPEX sert lui-même le HTTPS** : `SPRING_PROFILES_ACTIVE=tls`, avec le certificat du serveur et sa clé privée au
+  format PEM, délivrés par l'autorité de certification interne :
+  `ORPEX_TLS_CERTIFICATE=file:/etc/orpex/tls/orpex.crt` et `ORPEX_TLS_PRIVATE_KEY=file:/etc/orpex/tls/orpex.key` (clé
+  non chiffrée, lisible seulement par le compte du service). Port 8443 par défaut ; TLS 1.2 et 1.3 seulement.
+
+Dans les deux cas : `ORPEX_APP_URL=https://…`. Le navigateur reçoit l'en-tête HSTS (HTTPS imposé ensuite).
 
 Générer la clé de chiffrement, et la conserver en lieu sûr (sans elle, le mot de passe SMTP est à ressaisir) :
 
@@ -71,6 +92,8 @@ docker compose ps                # orpex doit passer « healthy »
 ```
 
 Les données sont dans le volume `orpex-data`. Mise à jour : reconstruire l'image, puis `docker compose up -d`.
+Avec le profil `tls`, monter le dossier des certificats dans le conteneur (par exemple
+`volumes: ["/etc/orpex/tls:/etc/orpex/tls:ro"]` sous le service `orpex`) et publier le port 8443.
 
 ## 4b. Service Linux (systemd)
 
@@ -106,7 +129,8 @@ Journaux : `C:\ORPEX\logs`. Le service redémarre seul après une panne et au d�
 
 ## 5. Vérifier
 
-- `http://<serveur>:8080/actuator/health` répond `{"status":"UP"}`.
+- `https://<serveur>/actuator/health` répond `{"status":"UP"}` (ou `http://<serveur>:8080/…` avant la mise en HTTPS).
+- Les journaux de démarrage ne contiennent aucun avertissement « Configuration de production ».
 - Se connecter avec le premier administrateur, changer son mot de passe.
 - Écran « Messagerie » : saisir le relais, « Contrôler maintenant », puis « Envoyer un mail de test ».
 - Écran « Jours fériés » : ajouter les jours fériés du Mali de l'année (et les fêtes à date annoncée).

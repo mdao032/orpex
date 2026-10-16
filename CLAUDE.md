@@ -145,6 +145,9 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - `backend/.../config/` : sécurité (session par cookie, CSRF compatible Angular), propriétés `orpex.*`.
 - **Jackson 3** refuse par défaut un champ primitif (`int`, `boolean`) absent du JSON : dans les records de requête,
   utiliser `Integer`/`Boolean` pour les champs facultatifs.
+- HTTPS : derrière un proxy (`ORPEX_FORWARD_HEADERS=native`, `ORPEX_COOKIE_SECURE=true`) ou servi par ORPEX (profil `tls`,
+  certificat et clé PEM : `ORPEX_TLS_CERTIFICATE`, `ORPEX_TLS_PRIVATE_KEY`). `StartupChecks` signale au démarrage une
+  configuration de production incomplète. Pages Angular rechargées : `SpaForwardController` (liste alignée sur les routes).
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
 - `backend/src/main/resources/db/migration/` : Flyway. **Ne jamais modifier `V1__init.sql`** : ajouter `V2__...`.

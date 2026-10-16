@@ -62,6 +62,13 @@
       <artifactId>bcprov-jdk18on</artifactId>
       <version>${bouncycastle.version}</version>
     </dependency>
+    <!-- Tests seulement : certificat auto-signé pour vérifier le HTTPS. -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
+      <version>${bouncycastle.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- Envoi des mails (SMTP) et supervision -->
     <dependency>

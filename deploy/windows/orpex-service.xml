@@ -21,8 +21,14 @@
   <env name="ORPEX_ADMIN_EMAIL" value="admin@banque.local"/>
   <env name="ORPEX_ADMIN_PASSWORD" value="a-remplacer"/>
   <env name="ORPEX_TIMEZONE" value="Africa/Bamako"/>
-  <env name="ORPEX_COOKIE_SECURE" value="false"/>
-  <env name="ORPEX_PORT" value="8080"/>
+  <!-- HTTPS : derrière le proxy de la banque (ci-dessous), ou servi par ORPEX (voir deploy/README.md). -->
+  <env name="ORPEX_FORWARD_HEADERS" value="native"/>
+  <env name="ORPEX_COOKIE_SECURE" value="true"/>
+  <!--
+  <env name="SPRING_PROFILES_ACTIVE" value="tls"/>
+  <env name="ORPEX_TLS_CERTIFICATE" value="file:C:/ORPEX/tls/orpex.crt"/>
+  <env name="ORPEX_TLS_PRIVATE_KEY" value="file:C:/ORPEX/tls/orpex.key"/>
+  -->
 
   <startmode>Automatic</startmode>
   <delayedAutoStart>true</delayedAutoStart>
