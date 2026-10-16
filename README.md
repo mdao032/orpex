@@ -49,19 +49,21 @@ npm start
 
 ```powershell
 .\scripts\build.ps1   # front -> copié dans le JAR -> mvn verify
+docker build -t orpex:0.1.0 .
 ```
 
-Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et l'interface.
+Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et l'interface. `build.ps1` réinstalle les
+modules du front (`npm ci`) : arrêter `npm start` avant, sinon des fichiers verrouillés font échouer l'installation.
+
+## Installer en production
+
+Voir [`deploy/README.md`](deploy/README.md) : Docker, service Linux (systemd) ou service Windows (WinSW), variables
+d'environnement, clé de chiffrement, sauvegarde.
 
 ## État d'avancement
 
-| Élément | Statut |
-| --- | --- |
-| Front Angular : menu, 4 pages vides, proxy vers l'API | Compile, 2 tests passent, s'affiche |
-| Cœur métier Java (calendrier, activation, validation des lignes, empreinte) | 25 tests passent |
-| Partie Spring (configuration, sécurité, `/api/me`) | Compile ; l'API démarre, connexion et `/api/me` vérifiées |
-| Schéma SQL `V1__init.sql` | Appliqué par Flyway sur PostgreSQL 17 |
-| Import Excel, envois, validation quotidienne, journal | Pas commencé (voir la feuille de route) |
+Phases 0 à 8 terminées (import, envois, validation quotidienne, ré-import, journal d'audit, notifications) ;
+phase 9 (livraison) en cours. Détail : la feuille de route.
 
 ## Écarts avec la spécification (à connaître)
 
@@ -69,6 +71,8 @@ Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et
 - **Fuseau horaire** : `Africa/Bamako` par défaut (pilote au Mali), réglable par `ORPEX_TIMEZONE`.
 - **Jour non ouvré** : un envoi ponctuel tombant un jour non ouvré est reporté au dernier jour ouvré précédent,
   comme le dernier envoi d'une série « avant échéance ». À confirmer.
+- **Résumé hebdomadaire** : en plus du résumé quotidien, chaque utilisateur peut choisir un résumé le vendredi soir ou le
+  lundi matin.
 
 ## Prochaines étapes
 

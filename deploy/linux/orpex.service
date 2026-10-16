@@ -1,0 +1,28 @@
+# Service systemd d'ORPEX (Linux). Installation : voir deploy/README.md.
+[Unit]
+Description=ORPEX - relances planifiées et expédiées
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=orpex
+Group=orpex
+WorkingDirectory=/opt/orpex
+EnvironmentFile=/etc/orpex/orpex.env
+ExecStart=/usr/bin/java -XX:MaxRAMPercentage=75 -jar /opt/orpex/orpex.jar
+# Arrêt : Java termine les requêtes et un envoi en cours (30 s au plus), puis sort avec le code 143.
+SuccessExitStatus=143
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=10
+
+# Durcissement : le service n'écrit que dans /opt/orpex.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/orpex
+
+[Install]
+WantedBy=multi-user.target

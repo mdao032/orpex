@@ -1,0 +1,40 @@
+<!--
+  Service Windows d'ORPEX avec WinSW 2.12.0 (https://github.com/winsw/winsw/releases/tag/v2.12.0, WinSW-x64.exe).
+  Dans C:\ORPEX : orpex.jar, WinSW-x64.exe renommé orpex-service.exe, et ce fichier.
+  Installation : voir deploy/README.md. Ce fichier contient des secrets : le réserver aux administrateurs.
+-->
+<service>
+  <id>orpex</id>
+  <name>ORPEX</name>
+  <description>ORPEX - relances planifiées et expédiées</description>
+
+  <!-- JDK ou JRE 21 ; chemin complet si JAVA_HOME n'est pas défini pour le compte du service. -->
+  <executable>%JAVA_HOME%\bin\java.exe</executable>
+  <arguments>-XX:MaxRAMPercentage=75 -jar "%BASE%\orpex.jar"</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <env name="ORPEX_DB_URL" value="jdbc:postgresql://localhost:5432/orpex"/>
+  <env name="ORPEX_DB_USER" value="orpex"/>
+  <env name="ORPEX_DB_PASSWORD" value="a-remplacer"/>
+  <env name="ORPEX_SECRET_KEY" value="a-generer"/>
+  <env name="ORPEX_APP_URL" value="https://orpex.banque.local"/>
+  <env name="ORPEX_ADMIN_EMAIL" value="admin@banque.local"/>
+  <env name="ORPEX_ADMIN_PASSWORD" value="a-remplacer"/>
+  <env name="ORPEX_TIMEZONE" value="Africa/Bamako"/>
+  <env name="ORPEX_COOKIE_SECURE" value="false"/>
+  <env name="ORPEX_PORT" value="8080"/>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <!-- Arrêt : Ctrl+C envoyé à Java, qui termine un envoi en cours (30 s au plus). -->
+  <stoptimeout>40 sec</stoptimeout>
+
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

@@ -1,0 +1,35 @@
+# ORPEX avec sa base PostgreSQL, sur un serveur interne disposant de Docker.
+# Préparer : cp ../orpex.env.example .env, le remplir (ORPEX_DB_URL=jdbc:postgresql://postgres:5432/orpex),
+# puis : docker compose up -d   (l'image orpex:0.1.0 est construite depuis la racine du dépôt).
+services:
+  postgres:
+    image: postgres:17.7
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orpex
+      POSTGRES_USER: ${ORPEX_DB_USER:-orpex}
+      POSTGRES_PASSWORD: ${ORPEX_DB_PASSWORD:?définir ORPEX_DB_PASSWORD dans .env}
+    volumes:
+      - orpex-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ORPEX_DB_USER:-orpex} -d orpex"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  orpex:
+    image: orpex:0.1.0
+    build:
+      context: ../..
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    # Laisse le temps de terminer un envoi en cours à l'arrêt.
+    stop_grace_period: 40s
+
+volumes:
+  orpex-data:
