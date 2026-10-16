@@ -149,3 +149,22 @@ Journaux : `C:\ORPEX\logs`. Le service redémarre seul après une panne et au d�
   `ORPEX_SECRET_KEY` à part. Le journal d'audit et les envois ne sont jamais effacés par l'application.
 - **Mise à jour** : arrêter le service, remplacer le JAR (ou l'image), redémarrer ; les migrations de base sont
   appliquées au démarrage.
+
+## 7. Sécurité des dépendances
+
+Avant chaque livraison, sur un poste de développement qui a accès à Internet :
+
+```powershell
+.\scripts\securite.ps1
+```
+
+Le script construit le JAR et l'image, puis produit dans `rapports-securite\` :
+
+- les **inventaires des composants** (SBOM CycloneDX) : `orpex-backend-sbom.json` (aussi inclus dans le JAR,
+  `META-INF/sbom/application.cdx.json`) et `orpex-frontend-sbom.json` (dépendances livrées du front) ;
+- l'**analyse des vulnérabilités connues** : image Docker complète (système Alpine, Java, bibliothèques) et inventaire Java
+  par Trivy, dépendances du front par `npm audit`.
+
+Il s'arrête en erreur (code 1) s'il trouve une vulnérabilité haute ou critique : corriger (version plus récente de la
+ bibliothèque, de Spring Boot ou de l'image de base), puis relancer. Les versions forcées en avance sur Spring Boot sont
+signalées dans `backend/pom.xml`. L'image applique les mises à jour de sécurité d'Alpine à chaque construction.

@@ -35,6 +35,7 @@ cd frontend; npm install; npx ng test --watch=false; npm start
 .\scripts\dev.ps1                        # base + Mailpit (Docker) puis API, profil dev
 .\scripts\build.ps1                      # front copié dans le JAR, puis mvn verify
 docker build -t orpex:0.1.0 .            # image (sans tests) ; installation : deploy/README.md
+.\scripts\securite.ps1                   # SBOM CycloneDX + vulnérabilités (Trivy, npm audit), avant une livraison
 ```
 
 Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).

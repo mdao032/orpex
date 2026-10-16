@@ -18,7 +18,8 @@ COPY --from=front /src/frontend/dist/frontend/browser/ ./src/main/resources/stat
 RUN mvn -B -q package -DskipTests && cp target/orpex-backend-*.jar /orpex.jar
 
 FROM eclipse-temurin:21.0.11_10-jre-alpine
-RUN addgroup -S orpex && adduser -S -G orpex -H orpex
+# Correctifs de sécurité des paquets du système publiés depuis l'image de base.
+RUN apk upgrade --no-cache && addgroup -S orpex && adduser -S -G orpex -H orpex
 WORKDIR /app
 COPY --from=back /orpex.jar /app/orpex.jar
 USER orpex

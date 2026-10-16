@@ -12,6 +12,7 @@ backend/src/main/resources/static/
 !.vscode/extensions.json
 
 # Local
+rapports-securite/
 .env
 *.log
 

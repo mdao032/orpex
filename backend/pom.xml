@@ -20,6 +20,11 @@
   <properties>
     <java.version>21</java.version>
     <!-- Non gérée par Spring Boot : requise par Argon2PasswordEncoder. -->
+    <!-- Correctifs de sécurité en avance sur Spring Boot 4.1.1 (scripts/securite.ps1) : à retirer quand Spring Boot
+         fournira ces versions ou plus récentes. Tomcat : CVE-2026-65182, -65905, -68525 ; Jackson : CVE-2026-89407,
+         -89425, -68497, -91776, -91777. -->
+    <tomcat.version>11.0.25</tomcat.version>
+    <jackson-bom.version>3.1.7</jackson-bom.version>
     <bouncycastle.version>1.86</bouncycastle.version>
     <!-- Non gérée par Spring Boot : lecture des fichiers .xlsx. -->
     <poi.version>5.5.1</poi.version>
@@ -118,6 +123,13 @@
 
   <build>
     <plugins>
+      <!-- Inventaire des composants (SBOM CycloneDX), configuré par Spring Boot : écrit dans le JAR
+           (META-INF/sbom/application.cdx.json) à chaque package. -->
+      <plugin>
+        <groupId>org.cyclonedx</groupId>
+        <artifactId>cyclonedx-maven-plugin</artifactId>
+        <version>2.9.3</version>
+      </plugin>
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
