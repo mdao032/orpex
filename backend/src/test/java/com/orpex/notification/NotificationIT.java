@@ -56,7 +56,7 @@ class NotificationIT {
     MockMvc mvc;
 
     @Autowired
-    DailySummaryService summaries;
+    SummaryService summaries;
 
     @Autowired
     FailureAlertService failureAlerts;
@@ -99,11 +99,53 @@ class NotificationIT {
         verify(gateway).send(argThat(mail(to("resume@test.local").and(m -> m.body().contains("- envoyées : 1")
                 && m.body().contains("- en échec ou à vérifier : 1")
                 && m.body().contains("- prévues demain (02/04/2030) : 1")
-                && m.body().contains("- RES-2 → dest@exemple.ml, prévu à 09:00 : échec")))));
+                && m.body().contains("- RES-2 → dest@exemple.ml, prévu le 01/04 09:00 : échec")))));
 
         reset(gateway);
         summaries.sendDueSummaries(Instant.parse("2030-04-01T19:00:00Z"));
         verify(gateway, never()).send(argThat(mail(to("resume@test.local"))));
+    }
+
+    @Test
+    void aWeeklySummaryLeavesOnFridayEveningOrMondayMorning() throws Exception {
+        long friday = account("resume-vendredi@test.local", Role.USER);
+        long monday = account("resume-lundi@test.local", Role.USER);
+        for (long owner : new long[] {friday, monday}) {
+            long rule = activatedRule(owner, "HEB-" + owner, SchedulingRule.period(LocalDate.parse("2031-03-03"),
+                    LocalDate.parse("2031-03-10"), false));
+            jdbc.update("update occurrences set state = 'SENT', sent_at = now() where rule_id = ? and scheduled_date = ?",
+                    rule, LocalDate.parse("2031-03-03"));
+        }
+        jdbc.update("update users set summary_frequency = 'WEEKLY_FRIDAY' where id = ?", friday);
+        jdbc.update("update users set summary_frequency = 'WEEKLY_MONDAY' where id = ?", monday);
+        reset(gateway);
+
+        // Lundi 3 mars 2031 au soir : pas de résumé du vendredi.
+        summaries.sendDueSummaries(Instant.parse("2031-03-03T18:30:00Z"));
+        verify(gateway, never()).send(argThat(mail(to("resume-vendredi@test.local"))));
+        reset(gateway);
+
+        summaries.sendDueSummaries(Instant.parse("2031-03-07T18:30:00Z"));
+        verify(gateway).send(argThat(mail(to("resume-vendredi@test.local").and(m -> m.subject()
+                .contains("la semaine du 03/03/2031 au 07/03/2031") && m.body().contains("- envoyées : 1")
+                && m.body().contains("- prévues du 10/03/2031 au 16/03/2031 : 1")))));
+        verify(gateway, never()).send(argThat(mail(to("resume-lundi@test.local"))));
+
+        summaries.sendDueSummaries(Instant.parse("2031-03-10T08:15:00Z"));
+        verify(gateway).send(argThat(mail(to("resume-lundi@test.local").and(m -> m.subject()
+                .contains("la semaine du 03/03/2031 au 09/03/2031")
+                && m.body().contains("- prévues du 10/03/2031 au 16/03/2031 : 1")))));
+    }
+
+    @Test
+    void eachUserChoosesTheFrequencyOfTheirSummary() throws Exception {
+        account("choix-resume@test.local", Role.USER);
+        MockHttpSession session = login(mvc, "choix-resume@test.local", PASSWORD);
+        mvc.perform(get("/api/me").session(session)).andExpect(jsonPath("$.summaryFrequency").value("DAILY"));
+        send(mvc, put("/api/me/summary-frequency").session(session), "{\"frequency\": \"WEEKLY_MONDAY\"}")
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/me").session(session))
+                .andExpect(jsonPath("$.summaryFrequency").value("WEEKLY_MONDAY"));
     }
 
     @Test

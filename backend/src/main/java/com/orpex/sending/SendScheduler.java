@@ -1,7 +1,7 @@
 package com.orpex.sending;
 
 import com.orpex.mail.SmtpHealthService;
-import com.orpex.notification.DailySummaryService;
+import com.orpex.notification.SummaryService;
 import com.orpex.notification.FailureAlertService;
 import com.orpex.validation.ValidationReminderService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
@@ -21,15 +21,15 @@ class SendScheduler {
     private final SmtpHealthService health;
     private final ValidationReminderService reminders;
     private final FailureAlertService failureAlerts;
-    private final DailySummaryService dailySummaries;
+    private final SummaryService summaries;
 
     SendScheduler(SendWorker worker, SmtpHealthService health, ValidationReminderService reminders,
-            FailureAlertService failureAlerts, DailySummaryService dailySummaries) {
+            FailureAlertService failureAlerts, SummaryService summaries) {
         this.worker = worker;
         this.health = health;
         this.reminders = reminders;
         this.failureAlerts = failureAlerts;
-        this.dailySummaries = dailySummaries;
+        this.summaries = summaries;
     }
 
     /** Contrôle de santé du relais (spécification §10) : connexion sans envoi, résultat affiché à l'administrateur. */
@@ -49,6 +49,6 @@ class SendScheduler {
         worker.processDueSends();
         reminders.sendDueReminders();
         failureAlerts.sendDueAlerts();
-        dailySummaries.sendDueSummaries();
+        summaries.sendDueSummaries();
     }
 }

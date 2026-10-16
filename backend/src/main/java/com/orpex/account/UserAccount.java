@@ -49,6 +49,10 @@ public class UserAccount {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "summary_frequency", nullable = false, length = 20)
+    private SummaryFrequency summaryFrequency = SummaryFrequency.DAILY;
+
     protected UserAccount() {
         // JPA
     }
@@ -123,6 +127,14 @@ public class UserAccount {
     /** Un compte désactivé ne peut plus se connecter ; il n'est jamais supprimé (il reste cité par l'historique). */
     public void disable() {
         this.enabled = false;
+    }
+
+    public void changeSummaryFrequency(SummaryFrequency frequency) {
+        this.summaryFrequency = frequency;
+    }
+
+    public SummaryFrequency getSummaryFrequency() {
+        return summaryFrequency;
     }
 
     public Long getId() {

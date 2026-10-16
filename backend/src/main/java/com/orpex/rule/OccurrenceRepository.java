@@ -85,12 +85,12 @@ public interface OccurrenceRepository extends Repository<Occurrence, Long> {
     @Query("update Occurrence o set o.remindedAt = :now where o.id in :ids")
     int markReminded(@Param("ids") Collection<Long> ids, @Param("now") Instant now);
 
-    /** Résumé quotidien (requête système) : propriétaires ayant des envois l'un de ces jours. */
-    @Query("select distinct o.createdBy from Occurrence o where o.scheduledDate in :days")
-    List<Long> findOwnersWithSendsOn(@Param("days") Collection<LocalDate> days);
+    /** Résumés (requête système) : propriétaires ayant des envois sur la période (bornes incluses). */
+    @Query("select distinct o.createdBy from Occurrence o where o.scheduledDate between :from and :to")
+    List<Long> findOwnersWithSendsBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-    List<Occurrence> findAllByCreatedByAndScheduledDateInOrderByScheduledAtAsc(long createdBy,
-            Collection<LocalDate> days);
+    List<Occurrence> findAllByCreatedByAndScheduledDateBetweenOrderByScheduledAtAsc(long createdBy, LocalDate from,
+            LocalDate to);
 
     /** Alerte d'échec (requête système) : envois en échec ou à vérifier pas encore signalés. */
     @Query(nativeQuery = true, value = """

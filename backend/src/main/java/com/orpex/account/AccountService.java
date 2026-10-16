@@ -109,6 +109,21 @@ public class AccountService {
                 null, null);
     }
 
+    /** Fréquence du résumé de ses relances, choisie par l'utilisateur lui-même. */
+    @Transactional
+    public SummaryFrequency changeSummaryFrequency(String email, SummaryFrequency frequency) {
+        if (frequency == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisissez la fréquence du résumé.");
+        }
+        UserAccount account = accounts.findByEmail(UserAccount.normalizeEmail(email))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        SummaryFrequency before = account.getSummaryFrequency();
+        account.changeSummaryFrequency(frequency);
+        audit.record(AuditEvent.SUMMARY_FREQUENCY_CHANGED, account.getId(), "USER", account.getEmail(), before.name(),
+                frequency.name());
+        return frequency;
+    }
+
     private void checkRules(String password) {
         int length = password == null ? 0 : password.codePointCount(0, password.length());
         if (length < passwordRules.minLength()) {

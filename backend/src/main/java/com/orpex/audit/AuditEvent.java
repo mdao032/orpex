@@ -31,7 +31,8 @@ public enum AuditEvent {
     HOLIDAY_ADDED("Jour férié ajouté"),
     HOLIDAY_REMOVED("Jour férié retiré"),
     NOTIFICATION_SETTINGS_CHANGED("Journée de travail modifiée"),
-    DAILY_SUMMARY_SENT("Résumé quotidien envoyé"),
+    DAILY_SUMMARY_SENT("Résumé envoyé"),
+    SUMMARY_FREQUENCY_CHANGED("Fréquence du résumé modifiée"),
     FAILURE_ALERT_SENT("Alerte d'échec envoyée"),
     SMTP_ALERT_SENT("Alerte messagerie envoyée");
 

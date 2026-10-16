@@ -1,6 +1,7 @@
 package com.orpex.api;
 
 import com.orpex.account.AccountService;
+import com.orpex.account.SummaryFrequency;
 import com.orpex.account.UserAccount;
 import com.orpex.account.UserAccountRepository;
 import jakarta.validation.Valid;
@@ -23,7 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MeController {
 
     /** {@code timezone} : fuseau de l'installation, dans lequel l'écran affiche les heures (pas celui du navigateur). */
-    public record MeResponse(String email, List<String> roles, boolean mustChangePassword, String timezone) {
+    public record MeResponse(String email, List<String> roles, boolean mustChangePassword, String timezone,
+                             SummaryFrequency summaryFrequency) {
+    }
+
+    public record SummaryRequest(SummaryFrequency frequency) {
     }
 
     public record ChangePasswordRequest(@NotBlank String currentPassword, @NotBlank String newPassword) {
@@ -44,10 +49,16 @@ public class MeController {
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
-        boolean mustChangePassword = accounts.findByEmail(UserAccount.normalizeEmail(authentication.getName()))
-                .map(UserAccount::isMustChangePassword)
-                .orElse(false);
-        return new MeResponse(authentication.getName(), roles, mustChangePassword, clock.getZone().getId());
+        var account = accounts.findByEmail(UserAccount.normalizeEmail(authentication.getName()));
+        boolean mustChangePassword = account.map(UserAccount::isMustChangePassword).orElse(false);
+        SummaryFrequency frequency = account.map(UserAccount::getSummaryFrequency).orElse(SummaryFrequency.DAILY);
+        return new MeResponse(authentication.getName(), roles, mustChangePassword, clock.getZone().getId(), frequency);
+    }
+
+    /** Fréquence du résumé de ses relances : chaque jour ouvré, ou chaque semaine (vendredi soir ou lundi matin). */
+    @PutMapping("/summary-frequency")
+    public SummaryRequest changeSummaryFrequency(@RequestBody SummaryRequest request, Authentication authentication) {
+        return new SummaryRequest(accountService.changeSummaryFrequency(authentication.getName(), request.frequency()));
     }
 
     @PutMapping("/password")
