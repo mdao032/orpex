@@ -106,7 +106,7 @@ public class SmtpHealthService {
                 gateway.send(new MailMessage(senders.current().from(), admin.getEmail(), subject, body));
                 audit.record(AuditEvent.SMTP_ALERT_SENT, null, "USER", admin.getEmail(), null, subject);
             } catch (MailSendException | RuntimeException e) {
-                log.warn("Alerte messagerie non envoyée à {} : {}", admin.getEmail(), e.getMessage());
+                log.warn("Alerte messagerie non envoyée à l'administrateur {} : {}", admin.getId(), e.getMessage());
             }
         }
     }

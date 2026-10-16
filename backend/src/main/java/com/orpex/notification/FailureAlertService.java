@@ -79,8 +79,8 @@ public class FailureAlertService {
                             "Bonjour,\n\nCes envois ne sont pas partis normalement :\n\n" + String.join("\n", lines)
                                     + "\n\nVoir le détail et quoi faire : " + url() + "/lignes"));
                 } catch (MailSendException e) {
-                    log.warn("Alerte d'échec non envoyée à {} (nouvel essai au passage suivant) : {}",
-                            owner.getEmail(), e.getMessage());
+                    log.warn("Alerte d'échec non envoyée à l'utilisateur {} (nouvel essai au passage suivant) : {}",
+                            ownerId, e.getMessage());
                     continue;
                 }
             }
@@ -111,7 +111,7 @@ public class FailureAlertService {
                 audit.record(AuditEvent.FAILURE_ALERT_SENT, null, "USER", admin.getEmail(), null,
                         lines.size() + " envoi(s) signalé(s) à l'administrateur");
             } catch (MailSendException e) {
-                log.warn("Alerte d'échec non envoyée à l'administrateur {} : {}", admin.getEmail(), e.getMessage());
+                log.warn("Alerte d'échec non envoyée à l'administrateur {} : {}", admin.getId(), e.getMessage());
             }
         }
     }

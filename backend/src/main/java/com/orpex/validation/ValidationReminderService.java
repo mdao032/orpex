@@ -98,8 +98,8 @@ public class ValidationReminderService {
             gateway.send(new MailMessage(senders.current().from(), owner.getEmail(), subject(pending.size()),
                     body(pending)));
         } catch (MailSendException e) {
-            log.warn("Récapitulatif de validation non envoyé à {} (nouvel essai au passage suivant) : {}",
-                    owner.getEmail(), e.getMessage());
+            log.warn("Récapitulatif de validation non envoyé à l'utilisateur {} (nouvel essai au passage suivant) : {}",
+                    ownerId, e.getMessage());
             return false;
         }
         Set<Long> ids = pending.stream().map(Pending::sendId).collect(Collectors.toSet());
@@ -109,7 +109,7 @@ public class ValidationReminderService {
             audit.record(AuditEvent.VALIDATION_REMINDER_SENT, ownerId, "USER", owner.getEmail(), null,
                     pending.size() + " relance(s) à valider");
         });
-        log.info("Récapitulatif de validation envoyé à {} : {} relance(s)", owner.getEmail(), pending.size());
+        log.info("Récapitulatif de validation envoyé à l'utilisateur {} : {} relance(s)", ownerId, pending.size());
         return true;
     }
 

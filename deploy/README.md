@@ -137,6 +137,11 @@ Journaux : `C:\ORPEX\logs`. Le service redémarre seul après une panne et au d�
 
 ## 6. Exploiter
 
+- **Journaux** : sur la sortie standard, repris par Docker (`docker compose logs`), systemd (`journalctl -u orpex`)
+  ou WinSW (`C:\ORPEX\logs`). Avec `ORPEX_LOG_FORMAT=ecs` (réglage des modèles), une ligne JSON par événement, prête pour
+  un outil de collecte ; vide, du texte lisible. Ils ne contiennent ni mot de passe ni contenu de message, et désignent
+  les utilisateurs par leur numéro de compte ; le détail (qui, quoi, quand) est dans le journal d'audit de l'application.
+
 - **Arrêt** : le service termine les requêtes et un envoi en cours (30 s au plus) avant de s'arrêter. Un arrêt brutal
   pendant un envoi le met « à vérifier » : il n'est jamais renvoyé automatiquement.
 - **Pendant un arrêt** : les envois dont l'heure est passée de plus de 15 min deviennent « manqués », sans rattrapage.

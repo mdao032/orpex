@@ -23,7 +23,8 @@ WORKDIR /app
 COPY --from=back /orpex.jar /app/orpex.jar
 USER orpex
 EXPOSE 8080
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75" \
+    ORPEX_LOG_FORMAT=ecs
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD wget -qO- http://localhost:8080/actuator/health | grep -q '"UP"' || exit 1
 # exec : Java reçoit directement le signal d'arrêt et termine proprement un envoi en cours.

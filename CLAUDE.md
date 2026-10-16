@@ -148,6 +148,8 @@ Node requis : 22.22.3+ ou 24.15+ (Angular CLI 22).
 - HTTPS : derrière un proxy (`ORPEX_FORWARD_HEADERS=native`, `ORPEX_COOKIE_SECURE=true`) ou servi par ORPEX (profil `tls`,
   certificat et clé PEM : `ORPEX_TLS_CERTIFICATE`, `ORPEX_TLS_PRIVATE_KEY`). `StartupChecks` signale au démarrage une
   configuration de production incomplète. Pages Angular rechargées : `SpaForwardController` (liste alignée sur les routes).
+- Journaux applicatifs : texte, ou JSON ECS avec `ORPEX_LOG_FORMAT=ecs` (production) ; jamais de mot de passe ni de contenu
+  de message, utilisateurs désignés par leur numéro de compte (le détail est dans le journal d'audit).
 - Configuration : `application.properties` (commune, valeurs surchargeables par variables `ORPEX_*`) et
   `application-dev.properties` (uniquement les surcharges du profil `dev`). Pas de YAML.
 - `backend/src/main/resources/db/migration/` : Flyway. **Ne jamais modifier `V1__init.sql`** : ajouter `V2__...`.

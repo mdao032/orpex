@@ -44,6 +44,6 @@ class BootstrapAdminInitializer implements ApplicationRunner {
         }
         UserAccount created = accounts.save(
                 UserAccount.withTemporaryPassword(admin.email(), passwordEncoder.encode(admin.password()), Role.ADMIN));
-        log.info("Premier administrateur créé : {}", created.getEmail());
+        log.info("Premier administrateur créé (compte {}), mot de passe provisoire à changer", created.getId());
     }
 }

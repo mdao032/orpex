@@ -180,7 +180,7 @@ public class SummaryService {
         try {
             gateway.send(new MailMessage(senders.current().from(), owner.getEmail(), subject, body.toString()));
         } catch (MailSendException e) {
-            log.warn("Résumé non envoyé à {} (nouvel essai au passage suivant) : {}", owner.getEmail(),
+            log.warn("Résumé non envoyé à l'utilisateur {} (nouvel essai au passage suivant) : {}", ownerId,
                     e.getMessage());
             return false;
         }

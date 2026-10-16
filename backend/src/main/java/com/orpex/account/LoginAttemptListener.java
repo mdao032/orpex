@@ -45,7 +45,7 @@ class LoginAttemptListener {
             account.recordFailedLogin(settings.maxFailedAttempts(), settings.lockDuration(), now);
             if (account.isLockedAt(now)) {
                 log.warn("Compte {} verrouillé jusqu'à {} après {} échecs de connexion",
-                        account.getEmail(), account.getLockedUntil(), settings.maxFailedAttempts());
+                        account.getId(), account.getLockedUntil(), settings.maxFailedAttempts());
             }
         });
     }

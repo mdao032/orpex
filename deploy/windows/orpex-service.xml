@@ -10,7 +10,7 @@
 
   <!-- JDK ou JRE 21 ; chemin complet si JAVA_HOME n'est pas défini pour le compte du service. -->
   <executable>%JAVA_HOME%\bin\java.exe</executable>
-  <arguments>-XX:MaxRAMPercentage=75 -jar "%BASE%\orpex.jar"</arguments>
+  <arguments>-XX:MaxRAMPercentage=75 -Dstdout.encoding=UTF-8 -jar "%BASE%\orpex.jar"</arguments>
   <workingdirectory>%BASE%</workingdirectory>
 
   <env name="ORPEX_DB_URL" value="jdbc:postgresql://localhost:5432/orpex"/>
@@ -21,6 +21,7 @@
   <env name="ORPEX_ADMIN_EMAIL" value="admin@banque.local"/>
   <env name="ORPEX_ADMIN_PASSWORD" value="a-remplacer"/>
   <env name="ORPEX_TIMEZONE" value="Africa/Bamako"/>
+  <env name="ORPEX_LOG_FORMAT" value="ecs"/>
   <!-- HTTPS : derrière le proxy de la banque (ci-dessous), ou servi par ORPEX (voir deploy/README.md). -->
   <env name="ORPEX_FORWARD_HEADERS" value="native"/>
   <env name="ORPEX_COOKIE_SECURE" value="true"/>
