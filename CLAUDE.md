@@ -199,6 +199,9 @@ Voir la feuille de route (`orpex-docs/roadmaps/ROADMAP.md`), seule liste à jour
 
 ## Façon de travailler
 
+- Messages de commit en français, **sans aucune mention de Claude ou de l'IA** (pas de `Co-Authored-By`) ; une
+  exception exige le consentement explicite du propriétaire du dépôt.
+
 - Avancer par petites étapes vérifiables : compiler et lancer les tests avant de passer à la suite.
 - Toute dépendance ajoutée a une version figée et récente (pas de `latest`) ; vérifier les versions avant de les écrire.
 - Ne pas inventer de règle métier : en cas de doute, poser la question ou consulter la spécification.
