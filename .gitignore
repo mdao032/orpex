@@ -18,3 +18,4 @@ rapports-securite/
 
 # Claude Code (réglages personnels)
 .claude/settings.local.json
+identifiants-essai.txt

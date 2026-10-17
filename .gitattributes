@@ -6,3 +6,4 @@ deploy/linux/* text eol=lf
 deploy/orpex.env.example text eol=lf
 deploy/docker/* text eol=lf
 Dockerfile text eol=lf
+*.bat text eol=crlf

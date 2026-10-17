@@ -55,6 +55,10 @@ docker build -t orpex:0.1.0 .
 Résultat : `backend\target\orpex-backend-0.1.0-SNAPSHOT.jar`, qui sert l'API et l'interface. `build.ps1` réinstalle les
 modules du front (`npm ci`) : arrêter `npm start` avant, sinon des fichiers verrouillés font échouer l'installation.
 
+## Essayer sur un PC Windows
+
+Docker Desktop, puis double-clic sur `Essayer-ORPEX.bat` : voir [`ESSAI.md`](ESSAI.md).
+
 ## Installer en production
 
 Voir [`deploy/README.md`](deploy/README.md) : Docker, service Linux (systemd) ou service Windows (WinSW), variables
