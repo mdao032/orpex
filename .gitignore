@@ -19,3 +19,6 @@ rapports-securite/
 # Claude Code (rÃ©glages personnels)
 .claude/settings.local.json
 identifiants-essai.txt
+
+# Consignes pour Claude Code : locales, jamais poussées
+CLAUDE.md
